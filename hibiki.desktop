@@ -1,0 +1,9 @@
+[Desktop Entry]
+Type=Application
+Name=Hibiki
+Comment=YouTube music downloader and player
+Exec=hibiki
+Icon=hibiki
+Terminal=false
+Categories=AudioVideo;Audio;Player;
+Keywords=music;youtube;player;download;

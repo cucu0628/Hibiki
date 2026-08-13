@@ -1,0 +1,6 @@
+/build/
+/.cache/
+/.qtcreator/
+*.user
+*.user.*
+compile_commands.json
