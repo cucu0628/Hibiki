@@ -14,13 +14,13 @@ Item {
 
     VellumPanel {
         anchors.fill: parent
-        title: "LIBRARY"
-        trailing: Tracks.scanning ? "SCANNING"
-                : Tracks.count + (Tracks.count === 1 ? " TRACK" : " TRACKS")
+        title: "Library"
+        trailing: Tracks.scanning ? "Scanning…"
+                : Tracks.count + (Tracks.count === 1 ? " track" : " tracks")
 
         ColumnLayout {
             anchors.fill: parent
-            spacing: 12
+            spacing: 14
 
             RowLayout {
                 Layout.fillWidth: true
@@ -29,8 +29,8 @@ Item {
                 VellumField {
                     id: searchInput
                     Layout.fillWidth: true
-                    Layout.maximumWidth: 320
-                    indicator: ""
+                    Layout.maximumWidth: 380
+                    indicator: "search"
                     placeholderText: "Search title, artist, album"
                     onTextChanged: Tracks.searchText = text
                 }
@@ -39,16 +39,15 @@ Item {
 
                 Text {
                     visible: Tracks.scanning
-                    text: "SCANNING"
+                    text: "Scanning…"
                     color: Theme.accent
-                    font.pixelSize: 10
-                    font.letterSpacing: 2
+                    font.pixelSize: 12
                     opacity: 0.8
                 }
 
                 AccentButton {
-                    text: "RESCAN"
-                    iconText: ""
+                    text: "Rescan"
+                    iconText: "refresh"
                     outlined: true
                     enabled: !Tracks.scanning
                     onClicked: Tracks.rescan()
@@ -59,7 +58,7 @@ Item {
                 id: trackList
                 Layout.fillWidth: true
                 Layout.fillHeight: true
-                spacing: 2
+                spacing: 6
                 clip: true
                 model: Tracks
                 reuseItems: true
@@ -67,7 +66,7 @@ Item {
                 boundsBehavior: Flickable.StopAtBounds
 
                 ScrollBar.vertical: ScrollBar {
-                    width: 3
+                    width: 4
                     policy: ScrollBar.AsNeeded
                     contentItem: Rectangle {
                         implicitWidth: 3
@@ -98,15 +97,17 @@ Item {
                     readonly property bool current: index === Player.currentIndex
 
                     width: ListView.view.width
-                    height: 60
-                    radius: 0
-                    color: row.current || rowMouse.containsMouse ? Theme.background : "transparent"
+                    height: 66
+                    radius: Theme.cornerRadius
+                    color: row.current ? Theme.primaryContainer
+                         : rowMouse.containsMouse ? Theme.surfaceHigh : "transparent"
+                    Behavior on color { ColorAnimation { duration: 155 } }
 
                     Rectangle {
                         anchors.left: parent.left
                         anchors.top: parent.top
                         anchors.bottom: parent.bottom
-                        width: 3
+                        width: 0
                         color: Theme.accent
                         opacity: row.current ? 1 : 0
                         Behavior on opacity { NumberAnimation { duration: 120; easing.type: Easing.OutCubic } }
@@ -114,9 +115,9 @@ Item {
 
                     RowLayout {
                         anchors.fill: parent
-                        anchors.margins: 7
-                        anchors.leftMargin: 14
-                        spacing: 11
+                        anchors.margins: 8
+                        anchors.leftMargin: 12
+                        spacing: 12
 
                         Text {
                             Layout.preferredWidth: 22
@@ -140,7 +141,7 @@ Item {
                             Text {
                                 Layout.fillWidth: true
                                 text: row.title
-                                color: row.current ? Theme.accent : Theme.foreground
+                                color: Theme.foreground
                                 font.pixelSize: 13
                                 font.weight: Font.DemiBold
                                 elide: Text.ElideRight
@@ -161,10 +162,10 @@ Item {
                         }
 
                         IconButton {
-                            text: row.current && Player.playing ? "󰏤" : "󰐊"
+                            text: row.current && Player.playing ? "pause" : "play_arrow"
                             primary: row.current
                             buttonWidth: 38
-                            buttonHeight: 32
+                            buttonHeight: 38
                             iconSize: 16
                             description: row.current && Player.playing ? "Pause" : "Play"
                             onClicked: row.current ? Player.toggle() : Player.playTrack(row.index)
@@ -185,18 +186,17 @@ Item {
                     spacing: 10
                     visible: trackList.count === 0
 
-                    Text {
+                    DmsIcon {
                         anchors.horizontalCenter: parent.horizontalCenter
-                        text: ""
+                        text: "library_music"
                         color: Theme.accent
                         opacity: 0.45
-                        font.family: "MesloLGS Nerd Font Mono"
-                        font.pixelSize: 44
+                        iconSize: 44
                     }
                     Text {
                         anchors.horizontalCenter: parent.horizontalCenter
                         text: Tracks.searchText ? "No matching tracks"
-                            : "Your library is empty\nDownload a YouTube link to begin"
+                            : "Your library is empty\nDownload a link to begin"
                         color: Theme.muted
                         font.pixelSize: 12
                         horizontalAlignment: Text.AlignHCenter

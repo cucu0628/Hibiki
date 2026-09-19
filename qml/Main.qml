@@ -2,17 +2,17 @@ import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
 import Hibiki
-import "components"
 
 ApplicationWindow {
     id: window
-    width: 1080
-    height: 720
-    minimumWidth: 820
-    minimumHeight: 560
+    width: 1120
+    height: 760
+    minimumWidth: 860
+    minimumHeight: 600
     visible: true
     title: "Hibiki"
     color: Theme.background
+    font.family: DmsFonts.sans
 
     property int page: 0
 
@@ -34,82 +34,69 @@ ApplicationWindow {
     background: Rectangle { color: Theme.background }
 
     RowLayout {
-        anchors.fill: parent
-        spacing: 0
+        width: Math.min(parent.width - 24, 1320)
+        height: Math.min(parent.height - 24, 900)
+        anchors.centerIn: parent
+        spacing: 12
 
         Rectangle {
             id: sidebar
-            Layout.preferredWidth: 196
+            Layout.preferredWidth: 212
             Layout.fillHeight: true
             color: Theme.surface
-
-            Rectangle {
-                anchors.right: parent.right
-                anchors.top: parent.top
-                anchors.bottom: parent.bottom
-                width: 1
-                color: Theme.outline
-            }
+            radius: Theme.cornerRadius
 
             ColumnLayout {
                 anchors.fill: parent
-                anchors.margins: 16
-                spacing: 12
+                anchors.margins: 14
+                spacing: 8
 
                 RowLayout {
                     Layout.fillWidth: true
-                    spacing: 11
+                    Layout.bottomMargin: 12
+                    spacing: 12
 
                     Rectangle {
-                        Layout.preferredWidth: 38
-                        Layout.preferredHeight: 38
-                        color: Theme.accent
+                        Layout.preferredWidth: 44
+                        Layout.preferredHeight: 44
+                        radius: 14
+                        color: Theme.primaryContainer
 
-                        Text {
+                        DmsIcon {
                             anchors.centerIn: parent
-                            text: "H"
-                            color: Theme.background
-                            font.pixelSize: 20
-                            font.weight: Font.DemiBold
+                            text: "music_note"
+                            color: Theme.accent
+                            filled: true
+                            iconSize: 24
                         }
                     }
 
                     ColumnLayout {
                         Layout.fillWidth: true
-                        spacing: 3
+                        spacing: 0
 
                         Text {
-                            text: "HIBIKI"
+                            text: "Hibiki"
                             color: Theme.foreground
-                            font.pixelSize: 12
-                            font.letterSpacing: 3
-                            font.bold: true
+                            font.pixelSize: 18
+                            font.weight: Font.DemiBold
                         }
                         Text {
                             Layout.fillWidth: true
-                            text: "MUSIC PLAYER"
+                            text: "Music player"
                             color: Theme.muted
-                            font.pixelSize: 9
-                            font.letterSpacing: 1
+                            font.pixelSize: 11
                             elide: Text.ElideRight
                         }
                     }
                 }
 
-                Rectangle {
-                    Layout.fillWidth: true
-                    Layout.topMargin: 2
-                    implicitHeight: 1
-                    color: Theme.muted
-                    opacity: 0.35
-                }
-
                 Repeater {
                     model: [
-                        { label: "LIBRARY", icon: "", index: 0 },
-                        { label: "NOW PLAYING", icon: "", index: 1 },
-                        { label: "DOWNLOADS", icon: "", index: 2 },
-                        { label: "SETTINGS", icon: "", index: 3 }
+                        { label: "Library", icon: "library_music", index: 0 },
+                        { label: "Now playing", icon: "play_circle", index: 1 },
+                        { label: "Downloads", icon: "download", index: 2 },
+                        { label: "Settings", icon: "settings", index: 3 }
                     ]
 
                     delegate: Rectangle {
@@ -118,36 +105,31 @@ ApplicationWindow {
                         readonly property bool selected: window.page === modelData.index
 
                         Layout.fillWidth: true
-                        implicitHeight: 34
-                        radius: 0
-                        color: navChip.selected ? Theme.accent
+                        implicitHeight: 46
+                        radius: height / 2
+                        color: navChip.selected ? Theme.primaryContainer
                              : navMouse.containsMouse ? Theme.hover : "transparent"
-                        border.width: 1
-                        border.color: navChip.selected ? Theme.accent : Theme.line
-                        Behavior on color { ColorAnimation { duration: 110; easing.type: Easing.OutCubic } }
+                        Behavior on color { ColorAnimation { duration: 155; easing.type: Easing.OutCubic } }
 
                         Row {
                             anchors.left: parent.left
-                            anchors.leftMargin: 11
-                            anchors.right: parent.right
-                            anchors.rightMargin: 11
+                            anchors.leftMargin: 16
                             anchors.verticalCenter: parent.verticalCenter
-                            spacing: 9
+                            spacing: 13
 
-                            Text {
+                            DmsIcon {
                                 anchors.verticalCenter: parent.verticalCenter
                                 text: navChip.modelData.icon
-                                color: navChip.selected ? Theme.background : Theme.accent
-                                font.family: "MesloLGS Nerd Font Mono"
-                                font.pixelSize: 14
+                                color: navChip.selected ? Theme.accent : Theme.foreground
+                                filled: navChip.selected
+                                iconSize: 20
                             }
                             Text {
                                 anchors.verticalCenter: parent.verticalCenter
                                 text: navChip.modelData.label
-                                color: navChip.selected ? Theme.background : Theme.foreground
-                                font.pixelSize: 9
-                                font.letterSpacing: 2
-                                font.bold: true
+                                color: navChip.selected ? Theme.accent : Theme.foreground
+                                font.pixelSize: 13
+                                font.weight: navChip.selected ? Font.DemiBold : Font.Normal
                             }
                         }
 
@@ -165,33 +147,47 @@ ApplicationWindow {
 
                 Rectangle {
                     Layout.fillWidth: true
-                    implicitHeight: 1
-                    color: Theme.accent
-                    opacity: 0.26
-                }
+                    implicitHeight: 66
+                    radius: Theme.cornerRadius
+                    color: Theme.surfaceHigh
 
-                ColumnLayout {
-                    Layout.fillWidth: true
-                    spacing: 4
+                    RowLayout {
+                        anchors.fill: parent
+                        anchors.margins: 12
+                        spacing: 10
 
-                    SectionLabel { text: "THEME" }
-                    Text {
-                        Layout.fillWidth: true
-                        text: Theme.themeName.toUpperCase()
-                        color: Theme.foreground
-                        font.pixelSize: 10
-                        font.letterSpacing: 1
-                        elide: Text.ElideRight
-                    }
-                    Text {
-                        Layout.fillWidth: true
-                        Layout.topMargin: 2
-                        text: App.musicDirectory
-                        color: Theme.muted
-                        font.pixelSize: 8
-                        wrapMode: Text.WrapAnywhere
-                        maximumLineCount: 3
-                        elide: Text.ElideRight
+                        Rectangle {
+                            Layout.preferredWidth: 34
+                            Layout.preferredHeight: 34
+                            radius: 17
+                            color: Theme.primaryContainer
+
+                            DmsIcon {
+                                anchors.centerIn: parent
+                                text: "palette"
+                                color: Theme.accent
+                                filled: true
+                                iconSize: 18
+                            }
+                        }
+
+                        ColumnLayout {
+                            Layout.fillWidth: true
+                            spacing: 1
+                            Text {
+                                text: "DMS theme"
+                                color: Theme.muted
+                                font.pixelSize: 10
+                            }
+                            Text {
+                                Layout.fillWidth: true
+                                text: Theme.themeName
+                                color: Theme.foreground
+                                font.pixelSize: 12
+                                font.weight: Font.DemiBold
+                                elide: Text.ElideRight
+                            }
+                        }
                     }
                 }
             }
@@ -200,8 +196,7 @@ ApplicationWindow {
         ColumnLayout {
             Layout.fillWidth: true
             Layout.fillHeight: true
-            Layout.margins: 16
-            spacing: 14
+            spacing: 12
 
             StackLayout {
                 Layout.fillWidth: true
@@ -210,8 +205,6 @@ ApplicationWindow {
 
                 LibraryView { }
 
-                // The secondary pages are only built once they are opened, so
-                // the first frame carries just the library.
                 Loader {
                     id: stageLoader
                     property bool visited: false
@@ -234,8 +227,6 @@ ApplicationWindow {
                 }
             }
 
-            // The stage page carries its own transport, so the bar would only
-            // repeat it there.
             NowPlayingBar {
                 Layout.fillWidth: true
                 visible: window.page !== 1

@@ -11,9 +11,9 @@ Item {
 
         VellumPanel {
             Layout.fillWidth: true
-            implicitHeight: 108
-            title: "YOUTUBE IMPORT"
-            trailing: Downloads.toolsAvailable ? "YT-DLP / FFMPEG READY" : "TOOLS MISSING"
+            implicitHeight: 124
+            title: "Import from YouTube"
+            trailing: Downloads.toolsAvailable ? "yt-dlp and FFmpeg ready" : "Tools missing"
 
             RowLayout {
                 anchors.fill: parent
@@ -22,15 +22,15 @@ Item {
                 VellumField {
                     id: urlInput
                     Layout.fillWidth: true
-                    indicator: ""
+                    indicator: "video_library"
                     placeholderText: "YouTube video or playlist URL"
                     onAccepted: downloadButton.clicked()
                 }
 
                 AccentButton {
                     id: downloadButton
-                    text: Downloads.busy ? "ADD TO QUEUE" : "DOWNLOAD"
-                    iconText: ""
+                    text: Downloads.busy ? "Add to queue" : "Download"
+                    iconText: "download"
                     implicitHeight: 38
                     enabled: urlInput.text.trim().length > 0 && Downloads.toolsAvailable
                     onClicked: {
@@ -44,8 +44,8 @@ Item {
         VellumPanel {
             Layout.fillWidth: true
             Layout.fillHeight: true
-            title: "DOWNLOAD QUEUE"
-            trailing: jobsView.count + (jobsView.count === 1 ? " JOB" : " JOBS")
+            title: "Download queue"
+            trailing: jobsView.count + (jobsView.count === 1 ? " job" : " jobs")
 
             ColumnLayout {
                 anchors.fill: parent
@@ -62,8 +62,8 @@ Item {
                     }
 
                     AccentButton {
-                        text: "CLEAR FINISHED"
-                        iconText: "󰆴"
+                        text: "Clear finished"
+                        iconText: "delete_sweep"
                         outlined: true
                         onClicked: Downloads.clearFinished()
                     }
@@ -84,7 +84,7 @@ Item {
                         height: 70
                         accentLine: modelData.status === "downloading"
                                  || modelData.status === "processing"
-                        color: Theme.background
+                        color: Theme.surfaceHigh
 
                         Column {
                             anchors.fill: parent
@@ -111,11 +111,10 @@ Item {
                                     id: statusText
                                     anchors.right: parent.right
                                     anchors.verticalCenter: parent.verticalCenter
-                                    text: modelData.status.toUpperCase()
-                                    color: modelData.status === "failed" ? "#eb6f92" : Theme.accent
-                                    font.pixelSize: 9
+                                    text: modelData.status
+                                    color: modelData.status === "failed" ? Theme.error : Theme.accent
+                                    font.pixelSize: 11
                                     font.bold: true
-                                    font.letterSpacing: 1
                                 }
                             }
 
@@ -141,13 +140,12 @@ Item {
                         spacing: 10
                         visible: jobsView.count === 0
 
-                        Text {
+                        DmsIcon {
                             anchors.horizontalCenter: parent.horizontalCenter
-                            text: ""
+                            text: "download"
                             color: Theme.accent
                             opacity: 0.45
-                            font.family: "MesloLGS Nerd Font Mono"
-                            font.pixelSize: 40
+                            iconSize: 40
                         }
                         Text {
                             anchors.horizontalCenter: parent.horizontalCenter

@@ -2,13 +2,26 @@
 
 #include "TrackModel.h"
 
+#if QT_VERSION >= QT_VERSION_CHECK(6, 8, 0)
+#include <QAudioBuffer>
+#include <QAudioBufferOutput>
+#endif
 #include <QFileInfo>
 #include <QRandomGenerator>
+
+#include <array>
+#include <cmath>
 
 PlayerController::PlayerController(TrackModel *model, QObject *parent)
     : QObject(parent), m_model(model),
       m_settings(QStringLiteral("Hibiki"), QStringLiteral("Hibiki")) {
   m_player.setAudioOutput(&m_audioOutput);
+#if QT_VERSION >= QT_VERSION_CHECK(6, 8, 0)
+  m_audioBufferOutput = std::make_unique<QAudioBufferOutput>(this);
+  m_player.setAudioBufferOutput(m_audioBufferOutput.get());
+  connect(m_audioBufferOutput.get(), &QAudioBufferOutput::audioBufferReceived,
+          this, &PlayerController::analyzeAudioBuffer);
+#endif
   m_audioOutput.setVolume(
       m_settings.value(QStringLiteral("player/volume"), 0.72).toReal());
   m_shuffle =
@@ -27,8 +40,11 @@ PlayerController::PlayerController(TrackModel *model, QObject *parent)
   connect(&m_player, &QMediaPlayer::playbackStateChanged, this,
           [this](QMediaPlayer::PlaybackState state) {
             emit playingChanged();
-            if (state != QMediaPlayer::PlayingState)
+            if (state != QMediaPlayer::PlayingState) {
+              m_visualizerLevels = {0.0, 0.0, 0.0, 0.0, 0.0, 0.0};
+              emit visualizerLevelsChanged();
               savePlaybackState();
+            }
           });
   connect(&m_audioOutput, &QAudioOutput::volumeChanged, this,
           &PlayerController::volumeChanged);
@@ -82,6 +98,79 @@ QUrl PlayerController::coverUrl() const {
 bool PlayerController::playing() const {
   return m_player.playbackState() == QMediaPlayer::PlayingState;
 }
+
+#if QT_VERSION >= QT_VERSION_CHECK(6, 8, 0)
+void PlayerController::analyzeAudioBuffer(const QAudioBuffer &buffer) {
+  const QAudioFormat format = buffer.format();
+  const int channels = format.channelCount();
+  const int frameCount = buffer.frameCount();
+  if (!format.isValid() || channels <= 0 || frameCount <= 0)
+    return;
+
+  const int sampleFrames = qMin(frameCount, 1024);
+  QVector<double> samples;
+  samples.reserve(sampleFrames);
+
+  auto appendSamples = [&](const auto *data, double scale, double offset) {
+    for (int frame = 0; frame < sampleFrames; ++frame) {
+      double mono = 0;
+      for (int channel = 0; channel < channels; ++channel)
+        mono += (static_cast<double>(data[frame * channels + channel]) -
+                 offset) /
+                scale;
+      samples.append(mono / channels);
+    }
+  };
+
+  switch (format.sampleFormat()) {
+  case QAudioFormat::UInt8:
+    appendSamples(buffer.constData<quint8>(), 128.0, 128.0);
+    break;
+  case QAudioFormat::Int16:
+    appendSamples(buffer.constData<qint16>(), 32768.0, 0.0);
+    break;
+  case QAudioFormat::Int32:
+    appendSamples(buffer.constData<qint32>(), 2147483648.0, 0.0);
+    break;
+  case QAudioFormat::Float:
+    appendSamples(buffer.constData<float>(), 1.0, 0.0);
+    break;
+  default:
+    return;
+  }
+
+  if (samples.size() < 16)
+    return;
+
+  constexpr std::array<double, 6> frequencies{80, 180, 420,
+                                               1000, 2600, 6500};
+  QVariantList next;
+  next.reserve(frequencies.size());
+  const double sampleRate = format.sampleRate();
+  const double pi = std::acos(-1.0);
+
+  for (qsizetype band = 0; band < frequencies.size(); ++band) {
+    double real = 0;
+    double imaginary = 0;
+    for (qsizetype i = 0; i < samples.size(); ++i) {
+      const double window =
+          0.5 - 0.5 * std::cos(2.0 * pi * i / (samples.size() - 1));
+      const double angle = 2.0 * pi * frequencies[band] * i / sampleRate;
+      real += samples[i] * window * std::cos(angle);
+      imaginary -= samples[i] * window * std::sin(angle);
+    }
+    const double magnitude =
+        2.0 * std::hypot(real, imaginary) / samples.size();
+    const double target = qBound(0.0, std::sqrt(magnitude * 4.5), 1.0);
+    const double previous = m_visualizerLevels.value(band).toDouble();
+    const double smoothing = target > previous ? 0.68 : 0.2;
+    next.append(previous + smoothing * (target - previous));
+  }
+
+  m_visualizerLevels = next;
+  emit visualizerLevelsChanged();
+}
+#endif
 
 void PlayerController::setVolume(qreal volume) {
   volume = qBound(0.0, volume, 1.0);

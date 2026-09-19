@@ -1,15 +1,14 @@
 import QtQuick
 import QtQuick.Controls
 
-// Text input matching the shell's search field: a flat well with an accent
-// hairline while it holds focus and a glyph in the gutter.
+// DMS-style filled Material search field.
 TextField {
     id: field
 
     property string indicator: ""
     property color fieldColor: Theme.background
 
-    implicitHeight: 38
+    implicitHeight: 44
     leftPadding: indicator.length > 0 ? 36 : 12
     rightPadding: 12
     color: Theme.foreground
@@ -20,21 +19,20 @@ TextField {
     selectByMouse: true
 
     background: Rectangle {
-        radius: 0
-        color: field.fieldColor
+        radius: height / 2
+        color: field.activeFocus ? Theme.surfaceHighest : Theme.surfaceHigh
         border.width: 1
-        border.color: field.activeFocus ? Theme.accent : Theme.line
-        Behavior on border.color { ColorAnimation { duration: 120 } }
+        border.color: field.activeFocus ? Theme.accent : "transparent"
+        Behavior on border.color { ColorAnimation { duration: 155 } }
 
-        Text {
+        DmsIcon {
             anchors.left: parent.left
             anchors.leftMargin: 12
             anchors.verticalCenter: parent.verticalCenter
             visible: field.indicator.length > 0
             text: field.indicator
             color: Theme.accent
-            font.family: "MesloLGS Nerd Font Mono"
-            font.pixelSize: 13
+            iconSize: 17
         }
     }
 }

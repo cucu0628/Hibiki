@@ -1,24 +1,23 @@
 import QtQuick
 
-// Plain surface tile, used where a panel header would be noise.
+// Nested surface card using DMS' Material container hierarchy.
 Rectangle {
     id: card
 
     property bool accentLine: false
     property bool highlighted: false
 
-    color: Theme.surface
-    border.width: 1
-    border.color: highlighted ? Theme.accent : Theme.outline
-    radius: 0
+    color: highlighted ? Theme.primaryContainer : Theme.surfaceHigh
+    border.width: 0
+    radius: Theme.cornerRadius
 
     Rectangle {
         anchors.left: parent.left
         anchors.top: parent.top
         anchors.bottom: parent.bottom
-        width: 2
+        width: 3
         color: Theme.accent
-        opacity: 0.5
+        opacity: 0.8
         visible: card.accentLine
     }
 }

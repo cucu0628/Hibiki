@@ -1,15 +1,15 @@
 import QtQuick
 import QtQuick.Controls
 
-// Transport control drawn like the shell's media buttons: a flat rectangle
-// with a hairline border, or an accent block for the primary action.
+// Rounded DMS media action. The primary play button uses the active theme's
+// primary color; secondary actions get the Material state layer on hover.
 Button {
     id: control
 
     property bool primary: false
-    property bool active: true
-    property int buttonWidth: primary ? 64 : 50
-    property int buttonHeight: 46
+    property bool active: false
+    property int buttonWidth: primary ? 56 : 44
+    property int buttonHeight: primary ? 56 : 44
     property int iconSize: primary ? 24 : 20
     property string description: ""
 
@@ -17,8 +17,14 @@ Button {
     implicitHeight: buttonHeight
     padding: 0
     hoverEnabled: true
-    font.family: "MesloLGS Nerd Font Mono"
+    font.family: DmsFonts.icons
     font.pixelSize: iconSize
+    font.variableAxes: {
+        "FILL": control.primary || control.active ? 1 : 0,
+        "GRAD": -25,
+        "opsz": 24,
+        "wght": control.primary || control.active ? 500 : 400
+    }
 
     ToolTip.visible: hovered && description.length > 0
     ToolTip.text: description
@@ -26,20 +32,20 @@ Button {
 
     contentItem: Text {
         text: control.text
-        color: control.primary ? Theme.background : Theme.foreground
-        opacity: control.active ? 1 : 0.35
+        color: control.primary ? Theme.accentText
+                               : control.active ? Theme.accent : Theme.foreground
+        opacity: control.enabled ? 1 : 0.35
         font: control.font
         horizontalAlignment: Text.AlignHCenter
         verticalAlignment: Text.AlignVCenter
     }
 
     background: Rectangle {
-        radius: 0
-        color: control.primary ? (control.hovered ? Qt.lighter(Theme.accent, 1.18) : Theme.accent)
+        radius: height / 2
+        color: control.primary ? (control.hovered ? Qt.lighter(Theme.accent, 1.08) : Theme.accent)
                                : (control.hovered ? Theme.hover : "transparent")
-        border.width: control.primary ? 0 : 1
-        border.color: Theme.line
-        Behavior on color { ColorAnimation { duration: 110; easing.type: Easing.OutCubic } }
+        border.width: 0
+        Behavior on color { ColorAnimation { duration: 155; easing.type: Easing.OutCubic } }
     }
 
     MouseArea {

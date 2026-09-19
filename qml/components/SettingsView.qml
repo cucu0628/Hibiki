@@ -12,8 +12,8 @@ Item {
         VellumPanel {
             Layout.fillWidth: true
             implicitHeight: 268
-            title: "DISCORD RPC"
-            trailing: Discord.connected ? "CONNECTED" : Discord.enabled ? "WAITING" : "DISABLED"
+            title: "Discord Rich Presence"
+            trailing: Discord.connected ? "Connected" : Discord.enabled ? "Waiting" : "Disabled"
 
             ColumnLayout {
                 anchors.fill: parent
@@ -26,16 +26,15 @@ Item {
                     Rectangle {
                         Layout.preferredWidth: 42
                         Layout.preferredHeight: 42
-                        color: Theme.background
-                        border.width: 1
-                        border.color: Discord.connected ? Theme.accent : Theme.line
+                        radius: 21
+                        color: Theme.surfaceHigh
+                        border.width: 0
 
-                        Text {
+                        DmsIcon {
                             anchors.centerIn: parent
-                            text: "󰙯"
+                            text: "forum"
                             color: Discord.connected ? Theme.accent : Theme.muted
-                            font.family: "MesloLGS Nerd Font Mono"
-                            font.pixelSize: 21
+                            iconSize: 22
                         }
                     }
 
@@ -59,8 +58,8 @@ Item {
                     }
 
                     AccentButton {
-                        text: Discord.enabled ? "ENABLED" : "DISABLED"
-                        iconText: Discord.enabled ? "󰄬" : "󰅖"
+                        text: Discord.enabled ? "Enabled" : "Disabled"
+                        iconText: Discord.enabled ? "check" : "close"
                         outlined: !Discord.enabled
                         onClicked: Discord.enabled = !Discord.enabled
                     }
@@ -69,15 +68,14 @@ Item {
                 Rectangle {
                     Layout.fillWidth: true
                     implicitHeight: 1
-                    color: Theme.accent
-                    opacity: 0.26
+                    color: Theme.line
                 }
 
                 ColumnLayout {
                     Layout.fillWidth: true
                     spacing: 7
 
-                    SectionLabel { text: "APPLICATION ID" }
+                    SectionLabel { text: "Application ID" }
 
                     RowLayout {
                         Layout.fillWidth: true
@@ -86,7 +84,7 @@ Item {
                         VellumField {
                             id: applicationIdInput
                             Layout.fillWidth: true
-                            indicator: "󰌆"
+                            indicator: "key"
                             text: Discord.applicationId
                             placeholderText: "Example: 123456789012345678"
                             inputMethodHints: Qt.ImhDigitsOnly
@@ -95,8 +93,8 @@ Item {
                         }
 
                         AccentButton {
-                            text: "RECONNECT"
-                            iconText: ""
+                            text: "Reconnect"
+                            iconText: "sync"
                             outlined: true
                             implicitHeight: 38
                             enabled: Discord.enabled

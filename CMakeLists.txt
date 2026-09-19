@@ -50,6 +50,10 @@ qt_add_executable(hibiki
     src/TrayController.h
 )
 
+set_source_files_properties(qml/components/DmsFonts.qml PROPERTIES
+    QT_QML_SINGLETON_TYPE TRUE
+)
+
 qt_add_qml_module(hibiki
     URI Hibiki
     VERSION 1.0
@@ -58,7 +62,10 @@ qt_add_qml_module(hibiki
         qml/components/AccentButton.qml
         qml/components/Artwork.qml
         qml/components/DownloadPanel.qml
+        qml/components/DmsFonts.qml
+        qml/components/DmsIcon.qml
         qml/components/NowPlayingView.qml
+        qml/components/VisualizerArtwork.qml
         qml/components/VellumField.qml
         qml/components/VellumPanel.qml
         qml/components/SettingsView.qml

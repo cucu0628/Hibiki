@@ -1,22 +1,20 @@
 import QtQuick
 
-// Panel frame in the shell's dashboard style: an accent section title, a
-// muted trailing note and a thin accent rule above the content.
+// DMS dashboard surface with a compact Material section header.
 Rectangle {
     id: panel
 
     property string title: ""
     property string trailing: ""
-    property real contentSpacing: 10
-    property real bodyMargin: 14
+    property real contentSpacing: 12
+    property real bodyMargin: 18
     default property alias content: body.data
 
     readonly property alias bodyHeight: body.height
 
-    radius: 0
+    radius: Theme.cornerRadius
     color: Theme.surface
-    border.color: Theme.outline
-    border.width: 1
+    border.width: 0
     clip: true
 
     Item {
@@ -27,17 +25,16 @@ Rectangle {
         anchors.top: parent.top
         anchors.leftMargin: panel.bodyMargin
         anchors.rightMargin: panel.bodyMargin
-        anchors.topMargin: 12
-        height: 16
+        anchors.topMargin: 16
+        height: 20
 
         Text {
             anchors.left: parent.left
             anchors.verticalCenter: parent.verticalCenter
             text: panel.title
-            color: Theme.accent
-            font.pixelSize: 9
-            font.letterSpacing: 3
-            font.bold: true
+            color: Theme.foreground
+            font.pixelSize: 14
+            font.weight: Font.DemiBold
         }
 
         Text {
@@ -45,8 +42,7 @@ Rectangle {
             anchors.verticalCenter: parent.verticalCenter
             text: panel.trailing
             color: Theme.muted
-            font.pixelSize: 9
-            font.letterSpacing: 1
+            font.pixelSize: 11
             visible: panel.trailing !== ""
         }
     }
@@ -59,10 +55,9 @@ Rectangle {
         anchors.top: head.bottom
         anchors.leftMargin: panel.bodyMargin
         anchors.rightMargin: panel.bodyMargin
-        anchors.topMargin: 9
-        height: 1
-        color: Theme.accent
-        opacity: 0.26
+        anchors.topMargin: 8
+        height: 0
+        visible: false
     }
 
     Item {
@@ -75,6 +70,6 @@ Rectangle {
         anchors.leftMargin: panel.bodyMargin
         anchors.rightMargin: panel.bodyMargin
         anchors.topMargin: panel.contentSpacing
-        anchors.bottomMargin: 12
+        anchors.bottomMargin: 16
     }
 }

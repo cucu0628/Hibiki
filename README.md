@@ -18,13 +18,19 @@ ctest --test-dir build --output-on-failure
 ./build/hibiki
 ```
 
+To install the release build for the current user:
+
+```sh
+cmake --install build --prefix ~/.local
+```
+
 Downloads are stored under the XDG Music directory in `hibiki`. Application metadata is stored in the XDG application data directory.
 
 **Now Playing** is a full-size stage for the current track with large cover art, track details, transport controls, timeline and volume.
 
 The window opens with the library already read from the database; the music directory is scanned on a worker thread afterwards and only files whose size or modification time changed are read again. New downloads therefore appear without a visible pause, and startup does not wait for the disk.
 
-The interface follows the active Vellum Shell theme from `~/.config/quickshell/vellum_shell` and its visual language: square corners, hairline borders, accent section titles, and accent-filled primary controls. If the shell is unavailable, the Rose Pine palette is used.
+The interface follows DankMaterialShell's media layout and active Material palette. It reads the resolved light/dark colors from `~/.cache/DankMaterialShell/dms-colors.json`, plus the theme name and corner radius from `~/.config/DankMaterialShell/settings.json`, and updates when those files change. If DMS is unavailable, a Catppuccin Mocha palette is used.
 
 ## Discord Rich Presence
 

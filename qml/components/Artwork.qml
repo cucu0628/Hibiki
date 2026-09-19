@@ -1,22 +1,19 @@
 import QtQuick
 
-// Cover frame in the shell's media style: accent hairline, a dimmed image and
-// an icon placeholder while nothing is loaded.
+// Album artwork shaped like DMS' media card artwork.
 Rectangle {
     id: root
 
     property url source
     property int decodeSize: 256
 
-    color: Theme.background
-    border.width: 1
-    border.color: Theme.accent
+    color: Theme.surfaceHighest
+    radius: Theme.cornerRadius
     clip: true
 
     Image {
         id: cover
         anchors.fill: parent
-        anchors.margins: 1
         source: root.source
         // Thumbnails come from yt-dlp at video resolution; decoding them at
         // display size keeps list scrolling cheap.
@@ -28,29 +25,13 @@ Rectangle {
         visible: status === Image.Ready
     }
 
-    Rectangle {
-        anchors.fill: cover
-        color: Theme.background
-        opacity: 0.16
-        visible: cover.visible
-    }
-
-    Text {
+    DmsIcon {
         anchors.centerIn: parent
         visible: !cover.visible
-        text: ""
+        text: "album"
         color: Theme.accent
-        opacity: 0.6
-        font.family: "MesloLGS Nerd Font Mono"
-        font.pixelSize: Math.max(16, parent.width * 0.42)
+        opacity: 0.72
+        iconSize: Math.max(16, parent.width * 0.42)
     }
 
-    Rectangle {
-        anchors.left: parent.left
-        anchors.right: parent.right
-        anchors.bottom: parent.bottom
-        height: 3
-        color: Theme.accent
-        opacity: 0.9
-    }
 }

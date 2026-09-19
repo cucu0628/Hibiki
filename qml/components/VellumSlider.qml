@@ -1,7 +1,6 @@
 import QtQuick
 
-// Flat rail in the shell's style: it thickens under the pointer and the fill
-// eases towards its new position unless it is being dragged.
+// Rounded Material seek bar used by DMS media controls.
 Item {
     id: root
 
@@ -35,19 +34,33 @@ Item {
         anchors.left: parent.left
         anchors.right: parent.right
         anchors.verticalCenter: parent.verticalCenter
-        height: root.interactive && (area.containsMouse || area.pressed) ? 5 : 3
-        color: Theme.line
+        height: root.interactive && (area.containsMouse || area.pressed) ? 6 : 4
+        radius: height / 2
+        color: Theme.surfaceHighest
         Behavior on height { NumberAnimation { duration: 90; easing.type: Easing.OutCubic } }
 
         Rectangle {
             width: parent.width * Math.max(0, Math.min(1, (root.value - root.from) / Math.max(1, root.to - root.from)))
             height: parent.height
+            radius: height / 2
             color: Theme.accent
             Behavior on width {
                 enabled: !area.pressed
                 NumberAnimation { duration: 180; easing.type: Easing.OutCubic }
             }
         }
+    }
+
+    Rectangle {
+        visible: root.interactive
+        width: area.pressed ? 14 : 10
+        height: width
+        radius: width / 2
+        color: Theme.accent
+        x: Math.max(0, Math.min(root.width - width,
+             root.width * (root.value - root.from) / Math.max(1, root.to - root.from) - width / 2))
+        anchors.verticalCenter: parent.verticalCenter
+        Behavior on width { NumberAnimation { duration: 100 } }
     }
 
     MouseArea {

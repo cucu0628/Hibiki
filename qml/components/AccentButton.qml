@@ -1,15 +1,14 @@
 import QtQuick
 import QtQuick.Controls
 
-// Chip button in the shell's tab style: filled with the accent when it is the
-// primary action, otherwise a hairline outline that tints on hover.
+// Material 3 pill button matching DMS controls.
 Button {
     id: control
 
     property bool outlined: false
     property string iconText: ""
 
-    implicitHeight: 30
+    implicitHeight: 40
     leftPadding: 14
     rightPadding: 14
     opacity: enabled ? 1 : 0.4
@@ -24,33 +23,31 @@ Button {
             anchors.centerIn: parent
             spacing: control.iconText.length > 0 ? 8 : 0
 
-            Text {
+            DmsIcon {
                 anchors.verticalCenter: parent.verticalCenter
                 visible: control.iconText.length > 0
                 text: control.iconText
-                color: control.outlined ? Theme.accent : Theme.background
-                font.family: "MesloLGS Nerd Font Mono"
-                font.pixelSize: 13
+                color: control.outlined ? Theme.accent : Theme.accentText
+                iconSize: 17
             }
 
             Text {
                 anchors.verticalCenter: parent.verticalCenter
                 text: control.text
-                color: control.outlined ? Theme.foreground : Theme.background
-                font.pixelSize: 9
-                font.letterSpacing: 2
-                font.bold: true
+                color: control.outlined ? Theme.accent : Theme.accentText
+                font.pixelSize: 12
+                font.weight: Font.DemiBold
             }
         }
     }
 
     background: Rectangle {
-        radius: 0
+        radius: height / 2
         color: control.outlined ? (control.hovered ? Theme.hover : "transparent")
-                                : (control.hovered ? Qt.lighter(Theme.accent, 1.18) : Theme.accent)
+                                : (control.hovered ? Qt.lighter(Theme.accent, 1.08) : Theme.accent)
         border.width: 1
-        border.color: control.outlined ? Theme.line : Theme.accent
-        Behavior on color { ColorAnimation { duration: 110; easing.type: Easing.OutCubic } }
+        border.color: control.outlined ? Theme.outline : Theme.accent
+        Behavior on color { ColorAnimation { duration: 155; easing.type: Easing.OutCubic } }
     }
 
     MouseArea {

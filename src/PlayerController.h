@@ -5,9 +5,14 @@
 #include <QObject>
 #include <QSettings>
 #include <QTimer>
+#include <QVariantList>
 #include <QVariantMap>
 #include <QVector>
 
+#include <memory>
+
+class QAudioBuffer;
+class QAudioBufferOutput;
 class TrackModel;
 
 class PlayerController final : public QObject {
@@ -24,6 +29,8 @@ class PlayerController final : public QObject {
   Q_PROPERTY(int repeatMode READ repeatMode WRITE setRepeatMode NOTIFY
                  repeatModeChanged)
   Q_PROPERTY(int currentIndex READ currentIndex NOTIFY trackChanged)
+  Q_PROPERTY(QVariantList visualizerLevels READ visualizerLevels NOTIFY
+                 visualizerLevelsChanged)
 
 public:
   explicit PlayerController(TrackModel *model, QObject *parent = nullptr);
@@ -43,6 +50,7 @@ public:
   int repeatMode() const { return m_repeatMode; }
   void setRepeatMode(int mode);
   int currentIndex() const { return m_currentIndex; }
+  QVariantList visualizerLevels() const { return m_visualizerLevels; }
   QVariantMap currentTrack() const { return m_currentTrack; }
 
   Q_INVOKABLE void playTrack(int index);
@@ -62,6 +70,7 @@ signals:
   void volumeChanged();
   void shuffleChanged();
   void repeatModeChanged();
+  void visualizerLevelsChanged();
   void playbackError(const QString &message);
 
 private:
@@ -69,15 +78,22 @@ private:
   void restorePlaybackState();
   void resolveCurrentIndex();
   void savePlaybackState();
+#if QT_VERSION >= QT_VERSION_CHECK(6, 8, 0)
+  void analyzeAudioBuffer(const QAudioBuffer &buffer);
+#endif
   int nextIndex(bool forward) const;
 
   TrackModel *m_model;
   QMediaPlayer m_player;
   QAudioOutput m_audioOutput;
+#if QT_VERSION >= QT_VERSION_CHECK(6, 8, 0)
+  std::unique_ptr<QAudioBufferOutput> m_audioBufferOutput;
+#endif
   QSettings m_settings;
   QTimer m_positionSaveTimer;
   QVariantMap m_currentTrack;
   QVector<int> m_history;
+  QVariantList m_visualizerLevels{0.0, 0.0, 0.0, 0.0, 0.0, 0.0};
   int m_currentIndex{-1};
   qint64 m_pendingRestorePosition{-1};
   bool m_shuffle{false};

@@ -11,179 +11,168 @@ Item {
         return Math.floor(seconds / 60) + ":" + String(seconds % 60).padStart(2, "0")
     }
 
-    VellumPanel {
+    Rectangle {
         anchors.fill: parent
-        title: Player.currentIndex >= 0 ? (Player.playing ? "NOW PLAYING" : "PAUSED") : "PLAYER IDLE"
-        trailing: Player.album ? Player.album.toUpperCase() : "HIBIKI"
-        bodyMargin: 22
+        color: Theme.surface
+        radius: Theme.cornerRadius
+        clip: true
 
-        RowLayout {
-            id: stage
-            anchors.fill: parent
-            spacing: 28
+        ColumnLayout {
+            anchors.centerIn: parent
+            width: Math.min(parent.width - 48, 540)
+            height: Math.min(parent.height - 40, 620)
+            spacing: 10
 
-            Artwork {
-                readonly property int side: Math.max(180, Math.min(stage.height, stage.width * 0.4, 380))
+            Item {
+                Layout.fillWidth: true
+                Layout.fillHeight: true
+                Layout.minimumHeight: 180
+                Layout.maximumHeight: 290
 
-                Layout.preferredWidth: side
-                Layout.preferredHeight: side
-                Layout.alignment: Qt.AlignVCenter
-                decodeSize: 512
-                source: Player.coverUrl
+                VisualizerArtwork {
+                    readonly property int side: Math.min(parent.width * 0.62, parent.height - 8, 270)
+                    width: side
+                    height: side
+                    anchors.centerIn: parent
+                    decodeSize: 512
+                    source: Player.coverUrl
+                    playing: Player.playing
+                    levels: Player.visualizerLevels
+                }
             }
 
             ColumnLayout {
                 Layout.fillWidth: true
-                Layout.fillHeight: true
-                spacing: 16
+                spacing: 3
 
-                Item { Layout.fillHeight: true }
-
-                ColumnLayout {
+                Text {
                     Layout.fillWidth: true
-                    Layout.fillHeight: false
-                    spacing: 5
+                    text: Player.title || "No track selected"
+                    color: Theme.foreground
+                    font.pixelSize: 22
+                    font.weight: Font.Bold
+                    horizontalAlignment: Text.AlignHCenter
+                    elide: Text.ElideRight
+                    maximumLineCount: 2
+                    wrapMode: Text.Wrap
+                }
+                Text {
+                    Layout.fillWidth: true
+                    text: Player.artist || "Select a track from your library"
+                    color: Theme.muted
+                    font.pixelSize: 14
+                    horizontalAlignment: Text.AlignHCenter
+                    elide: Text.ElideRight
+                }
+                Text {
+                    Layout.fillWidth: true
+                    text: Player.album || " "
+                    color: Theme.muted
+                    opacity: 0.72
+                    font.pixelSize: 12
+                    horizontalAlignment: Text.AlignHCenter
+                    elide: Text.ElideRight
+                }
+            }
+
+            ColumnLayout {
+                Layout.fillWidth: true
+                Layout.leftMargin: 24
+                Layout.rightMargin: 24
+                Layout.topMargin: 8
+                spacing: 1
+
+                VellumSlider {
+                    Layout.fillWidth: true
+                    implicitHeight: 24
+                    from: 0
+                    to: Math.max(1, Player.duration)
+                    value: Player.position
+                    wheelStep: 5000
+                    onMoved: value => Player.seek(value)
+                }
+
+                RowLayout {
+                    Layout.fillWidth: true
 
                     Text {
-                        Layout.fillWidth: true
-                        text: Player.title || "No track selected"
-                        color: Theme.foreground
-                        font.pixelSize: 30
-                        font.weight: Font.DemiBold
-                        wrapMode: Text.Wrap
-                        maximumLineCount: 2
-                        elide: Text.ElideRight
-                    }
-                    Text {
-                        Layout.fillWidth: true
-                        text: Player.artist || "Select a track from your library"
+                        text: root.formatDuration(Player.position)
                         color: Theme.muted
-                        font.pixelSize: 14
-                        elide: Text.ElideRight
+                        font.pixelSize: 11
                     }
+                    Item { Layout.fillWidth: true }
                     Text {
-                        Layout.fillWidth: true
-                        text: Player.album || "QUIET HOURS"
-                        color: Theme.accent
-                        font.pixelSize: 9
-                        font.letterSpacing: 2
-                        font.bold: true
-                        elide: Text.ElideRight
+                        text: Player.duration > 0 ? root.formatDuration(Player.duration) : "--:--"
+                        color: Theme.muted
+                        font.pixelSize: 11
                     }
                 }
+            }
 
-                Rectangle {
-                    Layout.fillWidth: true
-                    Layout.preferredHeight: 1
-                    color: Theme.accent
-                    opacity: 0.28
+            RowLayout {
+                Layout.alignment: Qt.AlignHCenter
+                Layout.topMargin: 4
+                spacing: 12
+
+                IconButton {
+                    text: "shuffle"
+                    active: Player.shuffle
+                    description: "Shuffle"
+                    onClicked: Player.shuffle = !Player.shuffle
                 }
-
-                ColumnLayout {
-                    Layout.fillWidth: true
-                    spacing: 7
-
-                    SectionLabel { text: "PLAYBACK" }
-
-                    VellumSlider {
-                        Layout.fillWidth: true
-                        implicitHeight: 24
-                        from: 0
-                        to: Math.max(1, Player.duration)
-                        value: Player.position
-                        wheelStep: 5000
-                        onMoved: value => Player.seek(value)
-                    }
-
-                    RowLayout {
-                        Layout.fillWidth: true
-
-                        Text {
-                            text: root.formatDuration(Player.position)
-                            color: Theme.foreground
-                            font.pixelSize: 10
-                        }
-                        Item { Layout.fillWidth: true }
-                        Text {
-                            text: Player.duration > 0
-                                ? "-" + root.formatDuration(Math.max(0, Player.duration - Player.position))
-                                : "0:00"
-                            color: Theme.muted
-                            font.pixelSize: 10
-                        }
-                    }
+                IconButton {
+                    text: "skip_previous"
+                    buttonWidth: 48
+                    buttonHeight: 48
+                    iconSize: 22
+                    description: "Previous"
+                    onClicked: Player.previous()
                 }
+                IconButton {
+                    text: Player.playing ? "pause" : "play_arrow"
+                    primary: true
+                    buttonWidth: 62
+                    buttonHeight: 62
+                    iconSize: 27
+                    description: Player.playing ? "Pause" : "Play"
+                    onClicked: Player.toggle()
+                }
+                IconButton {
+                    text: "skip_next"
+                    buttonWidth: 48
+                    buttonHeight: 48
+                    iconSize: 22
+                    description: "Next"
+                    onClicked: Player.next()
+                }
+                IconButton {
+                    text: Player.repeatMode === 1 ? "repeat_one" : "repeat"
+                    active: Player.repeatMode > 0
+                    description: Player.repeatMode === 0 ? "Repeat off"
+                               : Player.repeatMode === 1 ? "Repeat track" : "Repeat all"
+                    onClicked: Player.repeatMode = (Player.repeatMode + 1) % 3
+                }
+            }
+
+            Rectangle {
+                Layout.fillWidth: true
+                Layout.leftMargin: 48
+                Layout.rightMargin: 48
+                Layout.topMargin: 8
+                implicitHeight: 48
+                radius: height / 2
+                color: Theme.surfaceHigh
 
                 RowLayout {
-                    Layout.alignment: Qt.AlignHCenter
-                    spacing: 8
-
-                    IconButton {
-                        text: "󰒟"
-                        active: Player.shuffle
-                        buttonWidth: 42
-                        buttonHeight: 46
-                        iconSize: 19
-                        description: "Shuffle"
-                        onClicked: Player.shuffle = !Player.shuffle
-                    }
-                    IconButton {
-                        text: "󰒮"
-                        buttonWidth: 52
-                        buttonHeight: 46
-                        iconSize: 21
-                        description: "Previous"
-                        onClicked: Player.previous()
-                    }
-                    IconButton {
-                        text: Player.playing ? "󰏤" : "󰐊"
-                        primary: true
-                        buttonWidth: 72
-                        buttonHeight: 46
-                        iconSize: 26
-                        description: Player.playing ? "Pause" : "Play"
-                        onClicked: Player.toggle()
-                    }
-                    IconButton {
-                        text: "󰒭"
-                        buttonWidth: 52
-                        buttonHeight: 46
-                        iconSize: 21
-                        description: "Next"
-                        onClicked: Player.next()
-                    }
-                    IconButton {
-                        text: Player.repeatMode === 1 ? "󰑘" : "󰑖"
-                        active: Player.repeatMode > 0
-                        buttonWidth: 42
-                        buttonHeight: 46
-                        iconSize: 19
-                        description: Player.repeatMode === 0 ? "Repeat off"
-                                   : Player.repeatMode === 1 ? "Repeat track" : "Repeat all"
-                        onClicked: Player.repeatMode = (Player.repeatMode + 1) % 3
-                    }
-
-                }
-
-                Item { Layout.fillHeight: true }
-
-                RowLayout {
-                    Layout.fillWidth: true
-                    Layout.fillHeight: false
+                    anchors.fill: parent
+                    anchors.leftMargin: 16
+                    anchors.rightMargin: 16
                     spacing: 10
 
-                    Text {
-                        text: "VOL"
-                        color: Theme.accent
-                        font.pixelSize: 9
-                        font.letterSpacing: 2
-                        font.bold: true
-                    }
-                    Text {
-                        text: Player.volume <= 0 ? "󰖁" : Player.volume < 0.5 ? "" : ""
-                        color: Theme.accent
-                        font.family: "MesloLGS Nerd Font Mono"
-                        font.pixelSize: 14
+                    DmsIcon {
+                        text: Player.volume <= 0 ? "volume_off" : Player.volume < 0.5 ? "volume_down" : "volume_up"
+                        color: Theme.foreground
+                        iconSize: 19
                     }
                     VellumSlider {
                         Layout.fillWidth: true
@@ -194,10 +183,10 @@ Item {
                         onMoved: value => Player.volume = value
                     }
                     Text {
-                        Layout.preferredWidth: 32
+                        Layout.preferredWidth: 34
                         text: Math.round(Player.volume * 100) + "%"
                         color: Theme.muted
-                        font.pixelSize: 10
+                        font.pixelSize: 11
                         horizontalAlignment: Text.AlignRight
                     }
                 }

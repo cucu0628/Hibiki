@@ -2,73 +2,118 @@
 
 #include <QDir>
 #include <QFile>
-#include <QRegularExpression>
+#include <QFileInfo>
+#include <QJsonDocument>
+#include <QJsonObject>
 #include <QStandardPaths>
+
+namespace {
+QJsonObject readObject(const QString &path) {
+  QFile file(path);
+  if (!file.open(QIODevice::ReadOnly))
+    return {};
+  const QJsonDocument document = QJsonDocument::fromJson(file.readAll());
+  return document.isObject() ? document.object() : QJsonObject{};
+}
+} // namespace
 
 ThemeManager::ThemeManager(QObject *parent) : QObject(parent) {
   connect(&m_watcher, &QFileSystemWatcher::fileChanged, this,
           [this] { reload(); });
+  connect(&m_watcher, &QFileSystemWatcher::directoryChanged, this,
+          [this] { reload(); });
   reload();
 }
 
-QString ThemeManager::shellDirectory() const {
-  return QStandardPaths::writableLocation(QStandardPaths::ConfigLocation) +
-         QStringLiteral("/quickshell/vellum_shell");
+QColor ThemeManager::color(const QJsonObject &colors, const char *key,
+                           const QColor &fallback) {
+  const QColor candidate(colors.value(QLatin1String(key)).toString());
+  return candidate.isValid() ? candidate : fallback;
+}
+
+QColor ThemeManager::withAlpha(QColor value, qreal alpha) {
+  value.setAlphaF(alpha);
+  return value;
 }
 
 void ThemeManager::reload() {
-  const QString currentThemePath =
-      shellDirectory() + QStringLiteral("/current-theme");
-  QFile currentTheme(currentThemePath);
-  if (currentTheme.open(QIODevice::ReadOnly | QIODevice::Text)) {
-    const QString name = QString::fromUtf8(currentTheme.readAll()).trimmed();
-    if (!name.isEmpty())
-      m_themeName = name;
+  const QString config =
+      QStandardPaths::writableLocation(QStandardPaths::ConfigLocation) +
+      QStringLiteral("/DankMaterialShell/settings.json");
+  const QString cache =
+      QStandardPaths::writableLocation(QStandardPaths::GenericCacheLocation) +
+      QStringLiteral("/DankMaterialShell/dms-colors.json");
+
+  const QJsonObject settings = readObject(config);
+  const QJsonObject palette = readObject(cache);
+  const QString mode = palette.value(QStringLiteral("mode")).toString(
+      QStringLiteral("dark"));
+  const QJsonObject colors =
+      palette.value(QStringLiteral("colors")).toObject().value(mode).toObject();
+
+  if (!colors.isEmpty()) {
+    m_background = color(colors, "background", m_background);
+    m_foreground = color(colors, "on_surface", m_foreground);
+    m_accent = color(colors, "primary", m_accent);
+    m_accentText = color(colors, "on_primary", m_accentText);
+    m_primaryContainer =
+        color(colors, "primary_container", m_primaryContainer);
+    m_surface = color(colors, "surface_container", m_surface);
+    m_surfaceHigh = color(colors, "surface_container_high", m_surfaceHigh);
+    m_surfaceHighest =
+        color(colors, "surface_container_highest", m_surfaceHighest);
+    m_muted = color(colors, "on_surface_variant", m_muted);
+    m_outline = color(colors, "outline", m_outline);
+    m_error = color(colors, "error", m_error);
   }
 
-  const QString themeFilePath = shellDirectory() + QStringLiteral("/themes/") +
-                                m_themeName + QStringLiteral("/theme.conf");
-  QFile themeFile(themeFilePath);
-  if (themeFile.open(QIODevice::ReadOnly | QIODevice::Text)) {
-    const QRegularExpression linePattern(QStringLiteral(
-        "^([A-Z_]+)\\s*=\\s*[\"']?([^\"'\\s#]+|#[0-9A-Fa-f]{6,8})"));
-    while (!themeFile.atEnd()) {
-      const QString line = QString::fromUtf8(themeFile.readLine()).trimmed();
-      const auto match = linePattern.match(line);
-      if (!match.hasMatch())
-        continue;
-      const QString key = match.captured(1);
-      const QColor value(match.captured(2));
-      if (!value.isValid())
-        continue;
-      if (key == QStringLiteral("BACKGROUND"))
-        m_background = value;
-      else if (key == QStringLiteral("FOREGROUND"))
-        m_foreground = value;
-      else if (key == QStringLiteral("ACCENT") ||
-               key == QStringLiteral("BORDER_FOREGROUND"))
-        m_accent = value;
-      else if (key == QStringLiteral("SURFACE"))
-        m_surface = value;
-      else if (key == QStringLiteral("MUTED"))
-        m_muted = value;
+  const QString configuredName =
+      settings.value(QStringLiteral("currentThemeName")).toString();
+  if (!configuredName.isEmpty()) {
+    if (configuredName == QStringLiteral("custom")) {
+      const QString customThemePath =
+          settings.value(QStringLiteral("customThemeFile")).toString();
+      const QString customName =
+          readObject(customThemePath).value(QStringLiteral("name")).toString();
+      m_themeName = customName.isEmpty() ? QFileInfo(customThemePath).baseName()
+                                         : customName;
+    } else {
+      m_themeName = configuredName;
     }
   }
-  watchFiles(themeFilePath);
+  m_cornerRadius = qBound(
+      0, settings.value(QStringLiteral("cornerRadius")).toInt(12), 32);
+
+  QStringList watched{config, cache};
+  const QString customTheme =
+      settings.value(QStringLiteral("customThemeFile")).toString();
+  if (!customTheme.isEmpty())
+    watched << customTheme;
+  watchFiles(watched);
   emit themeChanged();
 }
 
-void ThemeManager::watchFiles(const QString &themeFile) {
-  const QStringList oldPaths = m_watcher.files();
-  if (!oldPaths.isEmpty())
-    m_watcher.removePaths(oldPaths);
-  const QString currentThemePath =
-      shellDirectory() + QStringLiteral("/current-theme");
-  QStringList paths;
-  if (QFile::exists(currentThemePath))
-    paths << currentThemePath;
-  if (QFile::exists(themeFile))
-    paths << themeFile;
-  if (!paths.isEmpty())
-    m_watcher.addPaths(paths);
+void ThemeManager::watchFiles(const QStringList &paths) {
+  const QStringList oldFiles = m_watcher.files();
+  if (!oldFiles.isEmpty())
+    m_watcher.removePaths(oldFiles);
+  const QStringList oldDirectories = m_watcher.directories();
+  if (!oldDirectories.isEmpty())
+    m_watcher.removePaths(oldDirectories);
+
+  QStringList files;
+  QStringList directories;
+  for (const QString &path : paths) {
+    if (QFile::exists(path))
+      files << path;
+    else {
+      const QString directory = QFileInfo(path).absolutePath();
+      if (QDir(directory).exists() && !directories.contains(directory))
+        directories << directory;
+    }
+  }
+  if (!files.isEmpty())
+    m_watcher.addPaths(files);
+  if (!directories.isEmpty())
+    m_watcher.addPaths(directories);
 }
