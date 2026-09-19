@@ -15,6 +15,7 @@ ApplicationWindow {
     font.family: DmsFonts.sans
 
     property int page: 0
+    readonly property bool wideMode: width >= 1450
 
     onPageChanged: {
         if (page === 1)
@@ -203,8 +204,23 @@ ApplicationWindow {
                 Layout.fillHeight: true
                 currentIndex: window.page
 
-                LibraryView {
-                    onDownloadRequested: window.page = 2
+                Item {
+                    RowLayout {
+                        anchors.fill: parent
+                        spacing: 12
+
+                        LibraryView {
+                            Layout.fillWidth: true
+                            Layout.fillHeight: true
+                            onDownloadRequested: window.page = 2
+                        }
+
+                        NowPlayingView {
+                            Layout.preferredWidth: 460
+                            Layout.fillHeight: true
+                            visible: window.wideMode
+                        }
+                    }
                 }
 
                 Loader {
@@ -231,7 +247,7 @@ ApplicationWindow {
 
             NowPlayingBar {
                 Layout.fillWidth: true
-                visible: window.page !== 1
+                visible: window.page !== 1 && !(window.page === 0 && window.wideMode)
             }
         }
     }
