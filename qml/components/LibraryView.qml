@@ -75,12 +75,33 @@ Item {
                 boundsBehavior: Flickable.StopAtBounds
 
                 ScrollBar.vertical: ScrollBar {
-                    width: 4
-                    policy: ScrollBar.AsNeeded
+                    id: libraryScroll
+                    width: 14
+                    policy: trackList.contentHeight > trackList.height
+                        ? ScrollBar.AlwaysOn : ScrollBar.AlwaysOff
+                    interactive: true
+                    minimumSize: 0.08
+
                     contentItem: Rectangle {
-                        implicitWidth: 3
+                        implicitWidth: 8
+                        radius: width / 2
                         color: Theme.accent
-                        opacity: 0.55
+                        opacity: libraryScroll.pressed ? 1
+                               : libraryScroll.hovered ? 0.85 : 0.62
+                        Behavior on opacity { NumberAnimation { duration: 120 } }
+                    }
+
+                    background: Rectangle {
+                        implicitWidth: 14
+                        color: "transparent"
+
+                        Rectangle {
+                            width: 4
+                            height: parent.height
+                            anchors.horizontalCenter: parent.horizontalCenter
+                            radius: width / 2
+                            color: Theme.surfaceHighest
+                        }
                     }
                 }
 
@@ -105,7 +126,7 @@ Item {
                     required property int duration
                     readonly property bool current: index === Player.currentIndex
 
-                    width: ListView.view.width
+                    width: ListView.view.width - (libraryScroll.visible ? 18 : 0)
                     height: 66
                     radius: Theme.cornerRadius
                     color: row.current ? Theme.primaryContainer
