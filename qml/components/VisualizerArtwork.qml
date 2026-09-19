@@ -1,4 +1,5 @@
 import QtQuick
+import QtQuick.Effects
 
 Item {
     id: root
@@ -74,15 +75,19 @@ Item {
         }
     }
 
-    Rectangle {
+    Item {
+        id: artFrame
         width: Math.min(parent.width, parent.height) * 0.84
         height: width
         anchors.centerIn: parent
-        radius: width / 2
-        color: Theme.surfaceHighest
-        border.width: 2
-        border.color: Theme.accent
-        clip: true
+
+        Rectangle {
+            anchors.fill: parent
+            radius: width / 2
+            color: Theme.surfaceHighest
+            border.width: 2
+            border.color: Theme.accent
+        }
 
         Image {
             id: cover
@@ -93,12 +98,29 @@ Item {
             fillMode: Image.PreserveAspectCrop
             asynchronous: true
             cache: true
-            visible: status === Image.Ready
+            visible: false
+        }
+
+        Rectangle {
+            id: circleMask
+            anchors.fill: parent
+            radius: width / 2
+            color: "white"
+            visible: false
+            layer.enabled: true
+        }
+
+        MultiEffect {
+            anchors.fill: parent
+            source: cover
+            maskEnabled: true
+            maskSource: circleMask
+            visible: cover.status === Image.Ready
         }
 
         DmsIcon {
             anchors.centerIn: parent
-            visible: !cover.visible
+            visible: cover.status !== Image.Ready
             text: "album"
             color: Theme.accent
             opacity: 0.72

@@ -49,7 +49,7 @@ Item {
                     Layout.fillWidth: true
                     text: Player.title || "No track selected"
                     color: Theme.foreground
-                    font.pixelSize: 22
+                    font.pixelSize: Player.title.length > 42 ? 18 : 22
                     font.weight: Font.Bold
                     horizontalAlignment: Text.AlignHCenter
                     elide: Text.ElideRight
