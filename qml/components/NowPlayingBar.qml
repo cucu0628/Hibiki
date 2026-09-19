@@ -7,6 +7,7 @@ Rectangle {
     implicitHeight: 104
     color: Theme.surface
     radius: Theme.cornerRadius
+    readonly property bool compact: width < 780
 
     function formatDuration(milliseconds) {
         if (!milliseconds || milliseconds < 0)
@@ -19,18 +20,18 @@ Rectangle {
         width: Math.min(parent.width - 24, 1200)
         height: parent.height - 24
         anchors.centerIn: parent
-        spacing: 14
+        spacing: root.compact ? 10 : 14
 
         Artwork {
-            Layout.preferredWidth: 80
-            Layout.preferredHeight: 80
+            Layout.preferredWidth: root.compact ? 72 : 80
+            Layout.preferredHeight: root.compact ? 72 : 80
             decodeSize: 256
             source: Player.coverUrl
         }
 
         ColumnLayout {
-            Layout.preferredWidth: 210
-            Layout.maximumWidth: 260
+            Layout.preferredWidth: root.compact ? 150 : 210
+            Layout.maximumWidth: root.compact ? 170 : 260
             spacing: 2
 
             Text {
@@ -52,6 +53,7 @@ Rectangle {
 
         ColumnLayout {
             Layout.fillWidth: true
+            Layout.minimumWidth: root.compact ? 220 : 300
             spacing: 4
 
             RowLayout {
@@ -111,8 +113,8 @@ Rectangle {
         }
 
         RowLayout {
-            Layout.preferredWidth: 150
-            spacing: 8
+            Layout.preferredWidth: root.compact ? 110 : 150
+            spacing: root.compact ? 6 : 8
 
             DmsIcon {
                 text: Player.volume <= 0 ? "volume_off" : Player.volume < 0.5 ? "volume_down" : "volume_up"

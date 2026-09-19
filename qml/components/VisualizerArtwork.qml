@@ -9,6 +9,7 @@ Item {
     property bool playing: false
     property var levels: []
     property real phase: 0
+    clip: true
 
     function levelAt(position) {
         if (!levels || levels.length === 0)
@@ -31,7 +32,10 @@ Item {
             const cx = width / 2
             const cy = height / 2
             const span = Math.min(width, height)
-            const baseRadius = span * 0.425
+            // Keep even the loudest peak inside the canvas. Without this
+            // safety margin the outline is clipped into a flat edge and looks
+            // as if it slipped below the surrounding panel.
+            const baseRadius = span * 0.41
             const points = 72
 
             ctx.beginPath()
@@ -40,9 +44,9 @@ Item {
                 const angle = ratio * Math.PI * 2 - Math.PI / 2
                 const band = root.levelAt((ratio + root.phase * 0.025) % 1)
                 const idleWave = root.playing
-                    ? Math.sin(angle * 5 + root.phase) * 1.8
+                    ? Math.sin(angle * 5 + root.phase) * 1.2
                     : 0
-                const radius = baseRadius + 3 + band * span * 0.085 + idleWave
+                const radius = baseRadius + 2 + band * span * 0.055 + idleWave
                 const x = cx + Math.cos(angle) * radius
                 const y = cy + Math.sin(angle) * radius
                 if (i === 0)
