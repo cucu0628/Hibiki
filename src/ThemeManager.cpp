@@ -43,6 +43,10 @@ void ThemeManager::reload() {
   const QString cache =
       QStandardPaths::writableLocation(QStandardPaths::GenericCacheLocation) +
       QStringLiteral("/DankMaterialShell/dms-colors.json");
+  const QString stateRoot = qEnvironmentVariable(
+      "XDG_STATE_HOME", QDir::homePath() + QStringLiteral("/.local/state"));
+  const QString session =
+      stateRoot + QStringLiteral("/DankMaterialShell/session.json");
 
   const QJsonObject settings = readObject(config);
   const QJsonObject palette = readObject(cache);
@@ -84,7 +88,13 @@ void ThemeManager::reload() {
   m_cornerRadius = qBound(
       0, settings.value(QStringLiteral("cornerRadius")).toInt(12), 32);
 
-  QStringList watched{config, cache};
+  const QString wallpaperPath =
+      readObject(session).value(QStringLiteral("wallpaperPath")).toString();
+  m_wallpaperUrl = QFileInfo::exists(wallpaperPath)
+                       ? QUrl::fromLocalFile(wallpaperPath)
+                       : QUrl{};
+
+  QStringList watched{config, cache, session};
   const QString customTheme =
       settings.value(QStringLiteral("customThemeFile")).toString();
   if (!customTheme.isEmpty())

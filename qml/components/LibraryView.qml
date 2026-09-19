@@ -16,9 +16,11 @@ Item {
 
     VellumPanel {
         anchors.fill: parent
-        title: "Library"
+        title: Tracks.count === 0 ? "Welcome to Hibiki" : "Library"
         trailing: Tracks.scanning ? "Scanning…"
-                : Tracks.count + (Tracks.count === 1 ? " track" : " tracks")
+                : Tracks.count > 0
+                    ? Tracks.count + (Tracks.count === 1 ? " track" : " tracks")
+                    : ""
 
         ColumnLayout {
             anchors.fill: parent
@@ -34,6 +36,7 @@ Item {
                     id: searchInput
                     Layout.fillWidth: true
                     Layout.maximumWidth: 380
+                    visible: Tracks.count > 0
                     indicator: "search"
                     placeholderText: "Search title, artist, album"
                     onTextChanged: Tracks.searchText = text

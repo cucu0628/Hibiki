@@ -16,6 +16,8 @@ ApplicationWindow {
 
     property int page: 0
     readonly property bool wideMode: width >= 1450
+    readonly property bool libraryEmpty: Tracks.count === 0
+    readonly property bool showWidePlayer: wideMode && !libraryEmpty
 
     onPageChanged: {
         if (page === 1)
@@ -32,7 +34,26 @@ ApplicationWindow {
         App.hideToTray()
     }
 
-    background: Rectangle { color: Theme.background }
+    background: Item {
+        Rectangle {
+            anchors.fill: parent
+            color: Theme.background
+        }
+        Image {
+            anchors.fill: parent
+            source: Theme.wallpaperUrl
+            fillMode: Image.PreserveAspectCrop
+            asynchronous: true
+            cache: true
+            visible: source.toString().length > 0
+            opacity: 0.18
+        }
+        Rectangle {
+            anchors.fill: parent
+            color: Theme.background
+            opacity: 0.72
+        }
+    }
 
     RowLayout {
         width: Math.min(parent.width - 32, 1680)
@@ -206,7 +227,11 @@ ApplicationWindow {
 
                 Item {
                     RowLayout {
-                        anchors.fill: parent
+                        width: window.libraryEmpty && window.wideMode
+                            ? Math.min(parent.width, 760) : parent.width
+                        height: window.libraryEmpty && window.wideMode
+                            ? Math.min(parent.height, 540) : parent.height
+                        anchors.centerIn: parent
                         spacing: 12
 
                         LibraryView {
@@ -218,7 +243,7 @@ ApplicationWindow {
                         NowPlayingView {
                             Layout.preferredWidth: 460
                             Layout.fillHeight: true
-                            visible: window.wideMode
+                            visible: window.showWidePlayer
                         }
                     }
                 }
@@ -247,7 +272,8 @@ ApplicationWindow {
 
             NowPlayingBar {
                 Layout.fillWidth: true
-                visible: window.page !== 1 && !(window.page === 0 && window.wideMode)
+                visible: window.page !== 1
+                      && !(window.page === 0 && (window.showWidePlayer || window.libraryEmpty))
             }
         }
     }

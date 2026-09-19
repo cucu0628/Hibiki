@@ -3,6 +3,7 @@
 #include <QColor>
 #include <QFileSystemWatcher>
 #include <QObject>
+#include <QUrl>
 
 class QJsonObject;
 
@@ -23,6 +24,7 @@ class ThemeManager final : public QObject {
   Q_PROPERTY(QColor error READ error NOTIFY themeChanged)
   Q_PROPERTY(QString themeName READ themeName NOTIFY themeChanged)
   Q_PROPERTY(int cornerRadius READ cornerRadius NOTIFY themeChanged)
+  Q_PROPERTY(QUrl wallpaperUrl READ wallpaperUrl NOTIFY themeChanged)
 
 public:
   explicit ThemeManager(QObject *parent = nullptr);
@@ -42,6 +44,7 @@ public:
   QColor error() const { return m_error; }
   QString themeName() const { return m_themeName; }
   int cornerRadius() const { return m_cornerRadius; }
+  QUrl wallpaperUrl() const { return m_wallpaperUrl; }
 
   Q_INVOKABLE void reload();
 
@@ -68,4 +71,5 @@ private:
   QColor m_error{QStringLiteral("#f38ba8")};
   QString m_themeName{QStringLiteral("DMS fallback")};
   int m_cornerRadius{12};
+  QUrl m_wallpaperUrl;
 };
