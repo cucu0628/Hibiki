@@ -5,6 +5,8 @@ import QtQuick.Layouts
 Item {
     id: root
 
+    signal downloadRequested()
+
     function formatDuration(milliseconds) {
         if (!milliseconds || milliseconds < 0)
             return "0:00"
@@ -24,6 +26,8 @@ Item {
 
             RowLayout {
                 Layout.fillWidth: true
+                Layout.maximumWidth: 1100
+                Layout.alignment: Qt.AlignHCenter
                 spacing: 10
 
                 VellumField {
@@ -58,6 +62,8 @@ Item {
                 id: trackList
                 Layout.fillWidth: true
                 Layout.fillHeight: true
+                Layout.maximumWidth: 1100
+                Layout.alignment: Qt.AlignHCenter
                 spacing: 6
                 clip: true
                 model: Tracks
@@ -181,26 +187,59 @@ Item {
                     }
                 }
 
-                Column {
+                Rectangle {
                     anchors.centerIn: parent
-                    spacing: 10
+                    width: Math.min(trackList.width - 40, 460)
+                    height: 230
+                    radius: Theme.cornerRadius * 2
+                    color: Theme.surfaceHigh
                     visible: trackList.count === 0
 
-                    DmsIcon {
-                        anchors.horizontalCenter: parent.horizontalCenter
-                        text: "library_music"
-                        color: Theme.accent
-                        opacity: 0.45
-                        iconSize: 44
-                    }
-                    Text {
-                        anchors.horizontalCenter: parent.horizontalCenter
-                        text: Tracks.searchText ? "No matching tracks"
-                            : "Your library is empty\nDownload a link to begin"
-                        color: Theme.muted
-                        font.pixelSize: 12
-                        horizontalAlignment: Text.AlignHCenter
-                        lineHeight: 1.5
+                    Column {
+                        anchors.centerIn: parent
+                        width: parent.width - 48
+                        spacing: 10
+
+                        Rectangle {
+                            width: 64
+                            height: 64
+                            radius: 32
+                            color: Theme.primaryContainer
+                            anchors.horizontalCenter: parent.horizontalCenter
+
+                            DmsIcon {
+                                anchors.centerIn: parent
+                                text: Tracks.searchText ? "search_off" : "library_music"
+                                color: Theme.accent
+                                filled: true
+                                iconSize: 32
+                            }
+                        }
+
+                        Text {
+                            width: parent.width
+                            text: Tracks.searchText ? "No matching tracks" : "Your library is empty"
+                            color: Theme.foreground
+                            font.pixelSize: 19
+                            font.weight: Font.DemiBold
+                            horizontalAlignment: Text.AlignHCenter
+                        }
+                        Text {
+                            width: parent.width
+                            text: Tracks.searchText
+                                ? "Try another title, artist, or album."
+                                : "Download a track or playlist to start listening."
+                            color: Theme.muted
+                            font.pixelSize: 12
+                            horizontalAlignment: Text.AlignHCenter
+                        }
+                        AccentButton {
+                            anchors.horizontalCenter: parent.horizontalCenter
+                            visible: !Tracks.searchText
+                            text: "Open downloads"
+                            iconText: "download"
+                            onClicked: root.downloadRequested()
+                        }
                     }
                 }
             }

@@ -34,14 +34,14 @@ ApplicationWindow {
     background: Rectangle { color: Theme.background }
 
     RowLayout {
-        width: Math.min(parent.width - 24, 1320)
-        height: Math.min(parent.height - 24, 900)
+        width: Math.min(parent.width - 32, 1680)
+        height: parent.height - 32
         anchors.centerIn: parent
         spacing: 12
 
         Rectangle {
             id: sidebar
-            Layout.preferredWidth: 212
+            Layout.preferredWidth: 228
             Layout.fillHeight: true
             color: Theme.surface
             radius: Theme.cornerRadius
@@ -203,7 +203,9 @@ ApplicationWindow {
                 Layout.fillHeight: true
                 currentIndex: window.page
 
-                LibraryView { }
+                LibraryView {
+                    onDownloadRequested: window.page = 2
+                }
 
                 Loader {
                     id: stageLoader

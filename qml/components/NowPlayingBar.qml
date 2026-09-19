@@ -16,8 +16,9 @@ Rectangle {
     }
 
     RowLayout {
-        anchors.fill: parent
-        anchors.margins: 12
+        width: Math.min(parent.width - 24, 1200)
+        height: parent.height - 24
+        anchors.centerIn: parent
         spacing: 14
 
         Artwork {
