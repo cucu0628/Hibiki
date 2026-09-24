@@ -34,29 +34,12 @@ ApplicationWindow {
         App.hideToTray()
     }
 
-    background: Item {
-        Rectangle {
-            anchors.fill: parent
-            color: Theme.background
-        }
-        Image {
-            anchors.fill: parent
-            source: Theme.wallpaperUrl
-            fillMode: Image.PreserveAspectCrop
-            asynchronous: true
-            cache: true
-            visible: source.toString().length > 0
-            opacity: 0.18
-        }
-        Rectangle {
-            anchors.fill: parent
-            color: Theme.background
-            opacity: 0.72
-        }
+    background: Rectangle {
+        color: Theme.background
     }
 
     RowLayout {
-        width: Math.min(parent.width - 32, 1680)
+        width: parent.width - 32
         height: parent.height - 32
         anchors.centerIn: parent
         spacing: 12
@@ -66,7 +49,7 @@ ApplicationWindow {
             Layout.preferredWidth: 228
             Layout.fillHeight: true
             color: Theme.surface
-            radius: Theme.cornerRadius
+            radius: Math.max(20, Theme.cornerRadius)
 
             ColumnLayout {
                 anchors.fill: parent
@@ -241,7 +224,7 @@ ApplicationWindow {
                         }
 
                         NowPlayingView {
-                            Layout.preferredWidth: 460
+                            Layout.preferredWidth: window.width >= 1800 ? 500 : 460
                             Layout.fillHeight: true
                             visible: window.showWidePlayer
                         }

@@ -9,79 +9,93 @@ Item {
     property bool playing: false
     property var levels: []
     property real phase: 0
-    clip: true
 
     function levelAt(position) {
         if (!levels || levels.length === 0)
             return 0
-        const scaled = position * levels.length
-        const low = Math.floor(scaled) % levels.length
-        const high = (low + 1) % levels.length
-        const mix = scaled - Math.floor(scaled)
+        const scaled = position * (levels.length - 1)
+        const low = Math.floor(scaled)
+        const high = Math.min(low + 1, levels.length - 1)
+        const mix = scaled - low
         return levels[low] * (1 - mix) + levels[high] * mix
     }
 
     Canvas {
-        id: halo
+        id: spectrum
         anchors.fill: parent
         antialiasing: true
 
         onPaint: {
             const ctx = getContext("2d")
             ctx.clearRect(0, 0, width, height)
-            const cx = width / 2
-            const cy = height / 2
+
             const span = Math.min(width, height)
-            // Keep even the loudest peak inside the canvas. Without this
-            // safety margin the outline is clipped into a flat edge and looks
-            // as if it slipped below the surrounding panel.
-            const baseRadius = span * 0.41
-            const points = 72
+            const centerX = width / 2
+            const centerY = height / 2
+            const radius = span * 0.355
+            const bars = 72
+            const accent = Theme.accent
+
+            // Quiet concentric guides keep the visualizer visible when paused.
+            ctx.beginPath()
+            ctx.arc(centerX, centerY, radius, 0, Math.PI * 2)
+            ctx.lineWidth = 1
+            ctx.strokeStyle = Qt.rgba(accent.r, accent.g, accent.b, 0.22)
+            ctx.stroke()
 
             ctx.beginPath()
-            for (let i = 0; i <= points; ++i) {
-                const ratio = i / points
-                const angle = ratio * Math.PI * 2 - Math.PI / 2
-                const band = root.levelAt((ratio + root.phase * 0.025) % 1)
-                const idleWave = root.playing
-                    ? Math.sin(angle * 5 + root.phase) * 1.2
-                    : 0
-                const radius = baseRadius + 2 + band * span * 0.055 + idleWave
-                const x = cx + Math.cos(angle) * radius
-                const y = cy + Math.sin(angle) * radius
-                if (i === 0)
-                    ctx.moveTo(x, y)
-                else
-                    ctx.lineTo(x, y)
-            }
-            ctx.closePath()
-            ctx.fillStyle = Qt.rgba(Theme.accent.r, Theme.accent.g,
-                                    Theme.accent.b, root.playing ? 0.25 : 0.12)
-            ctx.fill()
-            ctx.lineWidth = 2
-            ctx.strokeStyle = Theme.accent
+            ctx.arc(centerX, centerY, span * 0.465, 0, Math.PI * 2)
+            ctx.strokeStyle = Qt.rgba(accent.r, accent.g, accent.b, 0.09)
             ctx.stroke()
+
+            ctx.lineCap = "round"
+            ctx.lineWidth = Math.max(2, span * 0.009)
+            for (let i = 0; i < bars; ++i) {
+                const position = i / bars
+                const angle = position * Math.PI * 2 - Math.PI / 2
+                const mirrored = position <= 0.5 ? position * 2 : (1 - position) * 2
+                const level = root.playing ? root.levelAt(mirrored) : 0
+                const movement = root.playing ? (Math.sin(root.phase + i * 0.54) + 1) * 0.5 : 0
+                const length = 4 + level * span * (0.064 + movement * 0.013)
+                const start = radius + 3
+                const end = start + length
+
+                ctx.beginPath()
+                ctx.moveTo(centerX + Math.cos(angle) * start,
+                           centerY + Math.sin(angle) * start)
+                ctx.lineTo(centerX + Math.cos(angle) * end,
+                           centerY + Math.sin(angle) * end)
+                ctx.strokeStyle = Qt.rgba(accent.r, accent.g, accent.b,
+                                          root.playing ? 0.46 + level * 0.52 : 0.3)
+                ctx.stroke()
+            }
         }
 
-        Connections {
-            target: Player
-            function onVisualizerLevelsChanged() { halo.requestPaint() }
-        }
+        onWidthChanged: requestPaint()
+        onHeightChanged: requestPaint()
+    }
+
+    onLevelsChanged: spectrum.requestPaint()
+    onPlayingChanged: spectrum.requestPaint()
+
+    Connections {
+        target: Theme
+        function onThemeChanged() { spectrum.requestPaint() }
     }
 
     Timer {
         running: root.visible && root.playing
-        interval: 33
+        interval: 50
         repeat: true
         onTriggered: {
-            root.phase += 0.09
-            halo.requestPaint()
+            root.phase += 0.13
+            spectrum.requestPaint()
         }
     }
 
     Item {
         id: artFrame
-        width: Math.min(parent.width, parent.height) * 0.84
+        width: Math.min(parent.width, parent.height) * 0.62
         height: width
         anchors.centerIn: parent
 
@@ -89,8 +103,8 @@ Item {
             anchors.fill: parent
             radius: width / 2
             color: Theme.surfaceHighest
-            border.width: 2
-            border.color: Theme.accent
+            border.width: 3
+            border.color: Theme.primaryContainer
         }
 
         Image {

@@ -12,7 +12,7 @@ Rectangle {
 
     readonly property alias bodyHeight: body.height
 
-    radius: Theme.cornerRadius
+    radius: Math.max(20, Theme.cornerRadius)
     color: Theme.surface
     border.width: 0
     clip: true
@@ -33,7 +33,7 @@ Rectangle {
             anchors.verticalCenter: parent.verticalCenter
             text: panel.title
             color: Theme.foreground
-            font.pixelSize: 14
+            font.pixelSize: 18
             font.weight: Font.DemiBold
         }
 

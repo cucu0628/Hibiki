@@ -103,6 +103,16 @@ install(TARGETS hibiki
 )
 install(FILES hibiki.desktop DESTINATION share/applications)
 install(FILES assets/hibiki.svg DESTINATION share/icons/hicolor/scalable/apps)
+install(CODE [[
+    set(desktop_file "$ENV{DESTDIR}${CMAKE_INSTALL_PREFIX}/share/applications/hibiki.desktop")
+    file(READ "${desktop_file}" desktop_entry)
+    string(REPLACE "Exec=hibiki"
+        "Exec=${CMAKE_INSTALL_PREFIX}/bin/hibiki" desktop_entry "${desktop_entry}")
+    string(REPLACE "Icon=hibiki"
+        "Icon=${CMAKE_INSTALL_PREFIX}/share/icons/hicolor/scalable/apps/hibiki.svg"
+        desktop_entry "${desktop_entry}")
+    file(WRITE "${desktop_file}" "${desktop_entry}")
+]])
 
 enable_testing()
 

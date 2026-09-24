@@ -14,23 +14,32 @@ Item {
     Rectangle {
         anchors.fill: parent
         color: Theme.surface
-        radius: Theme.cornerRadius
+        radius: Math.max(20, Theme.cornerRadius)
         clip: true
 
         ColumnLayout {
             anchors.centerIn: parent
             width: Math.min(parent.width - 48, 540)
-            height: Math.min(parent.height - 40, 620)
-            spacing: 10
+            height: Math.min(parent.height - 48, 760)
+            spacing: 12
+
+            Text {
+                Layout.alignment: Qt.AlignHCenter
+                text: "NOW PLAYING"
+                color: Theme.accent
+                font.pixelSize: 11
+                font.weight: Font.DemiBold
+                font.letterSpacing: 1.5
+            }
 
             Item {
                 Layout.fillWidth: true
                 Layout.fillHeight: true
                 Layout.minimumHeight: 180
-                Layout.maximumHeight: 290
+                Layout.maximumHeight: 400
 
                 VisualizerArtwork {
-                    readonly property int side: Math.min(parent.width * 0.62, parent.height - 8, 270)
+                    readonly property int side: Math.min(parent.width * 0.88, parent.height - 8, 390)
                     width: side
                     height: side
                     anchors.centerIn: parent

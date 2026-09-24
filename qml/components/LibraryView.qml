@@ -28,14 +28,12 @@ Item {
 
             RowLayout {
                 Layout.fillWidth: true
-                Layout.maximumWidth: 1100
-                Layout.alignment: Qt.AlignHCenter
                 spacing: 10
 
                 VellumField {
                     id: searchInput
                     Layout.fillWidth: true
-                    Layout.maximumWidth: 380
+                    Layout.maximumWidth: 440
                     visible: Tracks.count > 0
                     indicator: "search"
                     placeholderText: "Search title, artist, album"
@@ -65,8 +63,6 @@ Item {
                 id: trackList
                 Layout.fillWidth: true
                 Layout.fillHeight: true
-                Layout.maximumWidth: 1100
-                Layout.alignment: Qt.AlignHCenter
                 spacing: 6
                 clip: true
                 model: Tracks
@@ -127,8 +123,8 @@ Item {
                     readonly property bool current: index === Player.currentIndex
 
                     width: ListView.view.width - (libraryScroll.visible ? 18 : 0)
-                    height: 66
-                    radius: Theme.cornerRadius
+                    height: 70
+                    radius: Math.max(12, Theme.cornerRadius)
                     color: row.current ? Theme.primaryContainer
                          : rowMouse.containsMouse ? Theme.surfaceHigh : "transparent"
                     Behavior on color { ColorAnimation { duration: 155 } }
@@ -137,7 +133,7 @@ Item {
                         anchors.left: parent.left
                         anchors.top: parent.top
                         anchors.bottom: parent.bottom
-                        width: 0
+                        width: 3
                         color: Theme.accent
                         opacity: row.current ? 1 : 0
                         Behavior on opacity { NumberAnimation { duration: 120; easing.type: Easing.OutCubic } }
@@ -154,12 +150,12 @@ Item {
                             text: String(row.index + 1).padStart(2, "0")
                             color: row.current ? Theme.accent : Theme.muted
                             font.family: "monospace"
-                            font.pixelSize: 8
+                            font.pixelSize: 10
                         }
 
                         Artwork {
-                            Layout.preferredWidth: 44
-                            Layout.preferredHeight: 44
+                            Layout.preferredWidth: 48
+                            Layout.preferredHeight: 48
                             decodeSize: 128
                             source: row.coverPath ? "file://" + row.coverPath : ""
                         }
@@ -172,7 +168,7 @@ Item {
                                 Layout.fillWidth: true
                                 text: row.title
                                 color: Theme.foreground
-                                font.pixelSize: 13
+                                font.pixelSize: 14
                                 font.weight: Font.DemiBold
                                 elide: Text.ElideRight
                             }
@@ -180,7 +176,7 @@ Item {
                                 Layout.fillWidth: true
                                 text: row.artist || row.album || "Unknown artist"
                                 color: Theme.muted
-                                font.pixelSize: 10
+                                font.pixelSize: 11
                                 elide: Text.ElideRight
                             }
                         }
@@ -188,7 +184,7 @@ Item {
                         Text {
                             text: root.formatDuration(row.duration)
                             color: Theme.muted
-                            font.pixelSize: 10
+                            font.pixelSize: 11
                         }
 
                         IconButton {
