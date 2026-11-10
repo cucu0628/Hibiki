@@ -156,6 +156,98 @@ int TrackModel::indexOfFilePath(const QString &filePath) const {
   return -1;
 }
 
+QVariantMap TrackModel::trackByFilePath(const QString &filePath) const {
+  for (const QVariant &item : m_allTracks) {
+    const QVariantMap track = item.toMap();
+    if (track.value(QStringLiteral("filePath")).toString() == filePath)
+      return track;
+  }
+  return {};
+}
+
+QString TrackModel::selectedPlaylistName() const {
+  if (m_selectedPlaylistId < 0)
+    return QStringLiteral("Library");
+  for (const QVariant &item : m_playlists) {
+    const QVariantMap playlist = item.toMap();
+    if (playlist.value(QStringLiteral("id")).toLongLong() == m_selectedPlaylistId)
+      return playlist.value(QStringLiteral("name")).toString();
+  }
+  return QStringLiteral("Library");
+}
+
+void TrackModel::setSelectedPlaylistId(qint64 id) {
+  if (id == m_selectedPlaylistId)
+    return;
+  if (id >= 0) {
+    bool found = false;
+    for (const QVariant &item : m_playlists)
+      found |= item.toMap().value(QStringLiteral("id")).toLongLong() == id;
+    if (!found)
+      return;
+  }
+  m_selectedPlaylistId = id;
+  emit selectedPlaylistChanged();
+  load();
+}
+
+void TrackModel::refreshPlaylists() {
+  m_playlists = m_repository->playlists();
+  emit playlistsChanged();
+  emit selectedPlaylistChanged();
+}
+
+qint64 TrackModel::createPlaylist(const QString &name) {
+  const QString trimmed = name.trimmed();
+  if (trimmed.isEmpty())
+    return -1;
+  const qint64 id = m_repository->createPlaylist(trimmed);
+  if (id < 0)
+    emit errorOccurred(m_repository->lastError());
+  else
+    refreshPlaylists();
+  return id;
+}
+
+bool TrackModel::renamePlaylist(qint64 id, const QString &name) {
+  const QString trimmed = name.trimmed();
+  if (trimmed.isEmpty() || !m_repository->renamePlaylist(id, trimmed))
+    return false;
+  refreshPlaylists();
+  return true;
+}
+
+bool TrackModel::deletePlaylist(qint64 id) {
+  if (!m_repository->deletePlaylist(id))
+    return false;
+  if (m_selectedPlaylistId == id)
+    setSelectedPlaylistId(-1);
+  refreshPlaylists();
+  return true;
+}
+
+bool TrackModel::addToPlaylist(qint64 playlistId, qint64 trackId) {
+  if (!m_repository->addToPlaylist(playlistId, trackId)) {
+    emit errorOccurred(m_repository->lastError());
+    return false;
+  }
+  refreshPlaylists();
+  if (m_selectedPlaylistId == playlistId)
+    load();
+  return true;
+}
+
+bool TrackModel::removeFromPlaylist(qint64 playlistId, qint64 trackId) {
+  if (!m_repository->removeFromPlaylist(playlistId, trackId)) {
+    emit errorOccurred(m_repository->lastError());
+    return false;
+  }
+  refreshPlaylists();
+  if (m_selectedPlaylistId == playlistId)
+    load();
+  return true;
+}
+
 QString TrackModel::searchText() const { return m_searchText; }
 
 void TrackModel::setSearchText(const QString &text) {
@@ -168,15 +260,27 @@ void TrackModel::setSearchText(const QString &text) {
 
 void TrackModel::refresh() {
   m_allTracks = m_repository->tracks();
+  refreshPlaylists();
   load();
 }
 
 void TrackModel::load() {
   beginResetModel();
   m_tracks.clear();
-  for (const QVariant &item : std::as_const(m_allTracks)) {
-    if (matchesSearch(item.toMap()))
-      m_tracks.append(item);
+  if (m_selectedPlaylistId < 0) {
+    for (const QVariant &item : std::as_const(m_allTracks)) {
+      if (matchesSearch(item.toMap()))
+        m_tracks.append(item);
+    }
+  } else {
+    QHash<qint64, QVariant> byId;
+    for (const QVariant &item : std::as_const(m_allTracks))
+      byId.insert(item.toMap().value(QStringLiteral("id")).toLongLong(), item);
+    for (qint64 id : m_repository->playlistTrackIds(m_selectedPlaylistId)) {
+      const QVariant item = byId.value(id);
+      if (item.isValid() && matchesSearch(item.toMap()))
+        m_tracks.append(item);
+    }
   }
   endResetModel();
   emit countChanged();

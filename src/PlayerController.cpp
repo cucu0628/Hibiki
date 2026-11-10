@@ -2,13 +2,28 @@
 
 #include "TrackModel.h"
 
+#if QT_VERSION >= QT_VERSION_CHECK(6, 8, 0)
+#include <QAudioBuffer>
+#include <QAudioBufferOutput>
+#endif
 #include <QFileInfo>
+#include <QHash>
 #include <QRandomGenerator>
+
+#include <array>
+#include <cmath>
+#include <utility>
 
 PlayerController::PlayerController(TrackModel *model, QObject *parent)
     : QObject(parent), m_model(model),
       m_settings(QStringLiteral("Hibiki"), QStringLiteral("Hibiki")) {
   m_player.setAudioOutput(&m_audioOutput);
+#if QT_VERSION >= QT_VERSION_CHECK(6, 8, 0)
+  m_audioBufferOutput = std::make_unique<QAudioBufferOutput>(this);
+  m_player.setAudioBufferOutput(m_audioBufferOutput.get());
+  connect(m_audioBufferOutput.get(), &QAudioBufferOutput::audioBufferReceived,
+          this, &PlayerController::analyzeAudioBuffer);
+#endif
   m_audioOutput.setVolume(
       m_settings.value(QStringLiteral("player/volume"), 0.72).toReal());
   m_shuffle =
@@ -27,15 +42,17 @@ PlayerController::PlayerController(TrackModel *model, QObject *parent)
   connect(&m_player, &QMediaPlayer::playbackStateChanged, this,
           [this](QMediaPlayer::PlaybackState state) {
             emit playingChanged();
-            if (state != QMediaPlayer::PlayingState)
+            if (state != QMediaPlayer::PlayingState) {
+              m_visualizerLevels = {0.0, 0.0, 0.0, 0.0, 0.0, 0.0};
+              emit visualizerLevelsChanged();
               savePlaybackState();
+            }
           });
   connect(&m_audioOutput, &QAudioOutput::volumeChanged, this,
           &PlayerController::volumeChanged);
-  // The library is now loaded from the database first and refined by a
-  // background scan, so row numbers can move under the current track.
+  // Playback keeps the queue from the view in which it was started.
   connect(model, &QAbstractItemModel::modelReset, this,
-          [this] { m_history.clear(); resolveCurrentIndex(); });
+          [this] { resolveCurrentIndex(); });
   connect(&m_player, &QMediaPlayer::errorOccurred, this,
           [this](QMediaPlayer::Error, const QString &message) {
             emit playbackError(message);
@@ -75,12 +92,102 @@ QString PlayerController::artist() const {
 QString PlayerController::album() const {
   return m_currentTrack.value(QStringLiteral("album")).toString();
 }
+QString PlayerController::currentFilePath() const {
+  return m_currentTrack.value(QStringLiteral("filePath")).toString();
+}
 QUrl PlayerController::coverUrl() const {
-  return QUrl::fromLocalFile(
-      m_currentTrack.value(QStringLiteral("coverPath")).toString());
+  return QUrl::fromLocalFile(coverPath());
+}
+QString PlayerController::coverPath() const {
+  return m_currentTrack.value(QStringLiteral("coverPath")).toString();
 }
 bool PlayerController::playing() const {
   return m_player.playbackState() == QMediaPlayer::PlayingState;
+}
+
+#if QT_VERSION >= QT_VERSION_CHECK(6, 8, 0)
+void PlayerController::analyzeAudioBuffer(const QAudioBuffer &buffer) {
+  const QAudioFormat format = buffer.format();
+  const int channels = format.channelCount();
+  const int frameCount = buffer.frameCount();
+  if (!format.isValid() || channels <= 0 || frameCount <= 0)
+    return;
+
+  const int sampleFrames = qMin(frameCount, 1024);
+  QVector<double> samples;
+  samples.reserve(sampleFrames);
+
+  auto appendSamples = [&](const auto *data, double scale, double offset) {
+    for (int frame = 0; frame < sampleFrames; ++frame) {
+      double mono = 0;
+      for (int channel = 0; channel < channels; ++channel)
+        mono += (static_cast<double>(data[frame * channels + channel]) -
+                 offset) /
+                scale;
+      samples.append(mono / channels);
+    }
+  };
+
+  switch (format.sampleFormat()) {
+  case QAudioFormat::UInt8:
+    appendSamples(buffer.constData<quint8>(), 128.0, 128.0);
+    break;
+  case QAudioFormat::Int16:
+    appendSamples(buffer.constData<qint16>(), 32768.0, 0.0);
+    break;
+  case QAudioFormat::Int32:
+    appendSamples(buffer.constData<qint32>(), 2147483648.0, 0.0);
+    break;
+  case QAudioFormat::Float:
+    appendSamples(buffer.constData<float>(), 1.0, 0.0);
+    break;
+  default:
+    return;
+  }
+
+  if (samples.size() < 16)
+    return;
+
+  constexpr std::array<double, 6> frequencies{80, 180, 420,
+                                               1000, 2600, 6500};
+  QVariantList next;
+  next.reserve(frequencies.size());
+  const double sampleRate = format.sampleRate();
+  const double pi = std::acos(-1.0);
+
+  for (qsizetype band = 0; band < frequencies.size(); ++band) {
+    double real = 0;
+    double imaginary = 0;
+    for (qsizetype i = 0; i < samples.size(); ++i) {
+      const double window =
+          0.5 - 0.5 * std::cos(2.0 * pi * i / (samples.size() - 1));
+      const double angle = 2.0 * pi * frequencies[band] * i / sampleRate;
+      real += samples[i] * window * std::cos(angle);
+      imaginary -= samples[i] * window * std::sin(angle);
+    }
+    const double magnitude =
+        2.0 * std::hypot(real, imaginary) / samples.size();
+    const double target = qBound(0.0, std::sqrt(magnitude * 4.5), 1.0);
+    const double previous = m_visualizerLevels.value(band).toDouble();
+    const double smoothing = target > previous ? 0.68 : 0.2;
+    next.append(previous + smoothing * (target - previous));
+  }
+
+  m_visualizerLevels = next;
+  emit visualizerLevelsChanged();
+}
+#endif
+
+void PlayerController::setVisualizerActive(bool active) {
+#if QT_VERSION >= QT_VERSION_CHECK(6, 8, 0)
+  m_player.setAudioBufferOutput(active ? m_audioBufferOutput.get() : nullptr);
+  if (!active) {
+    m_visualizerLevels = {0.0, 0.0, 0.0, 0.0, 0.0, 0.0};
+    emit visualizerLevelsChanged();
+  }
+#else
+  Q_UNUSED(active);
+#endif
 }
 
 void PlayerController::setVolume(qreal volume) {
@@ -110,6 +217,19 @@ void PlayerController::playTrack(int index) {
   if (index < 0 || index >= m_model->rowCount())
     return;
   savePlaybackState();
+  const QVariantList visible = m_model->visibleTracks();
+  if (visible != m_queue) {
+    m_queue = visible;
+    m_history.clear();
+    m_currentIndex = -1;
+  }
+  playQueueIndex(index);
+}
+
+void PlayerController::playQueueIndex(int index) {
+  if (index < 0 || index >= m_queue.size())
+    return;
+  savePlaybackState();
   if (m_currentIndex >= 0 && m_currentIndex != index) {
     m_history.append(m_currentIndex);
     if (m_history.size() > 200)
@@ -120,7 +240,7 @@ void PlayerController::playTrack(int index) {
 }
 
 void PlayerController::loadCurrent(bool autoplay) {
-  m_currentTrack = m_model->trackAt(m_currentIndex);
+  m_currentTrack = m_queue.at(m_currentIndex).toMap();
   const QString path =
       m_currentTrack.value(QStringLiteral("filePath")).toString();
   if (path.isEmpty() || !QFileInfo::exists(path)) {
@@ -146,7 +266,8 @@ void PlayerController::restorePlaybackState() {
     return;
 
   m_currentIndex = index;
-  m_currentTrack = m_model->trackAt(index);
+  m_queue = m_model->visibleTracks();
+  m_currentTrack = m_queue.at(index).toMap();
   m_pendingRestorePosition = qMax<qint64>(
       0, m_settings.value(QStringLiteral("player/position"), 0).toLongLong());
   m_player.setSource(QUrl::fromLocalFile(path));
@@ -160,14 +281,40 @@ void PlayerController::resolveCurrentIndex() {
     restorePlaybackState();
     return;
   }
-  const int index = m_model->indexOfFilePath(
-      m_currentTrack.value(QStringLiteral("filePath")).toString());
-  if (index == m_currentIndex)
+  QHash<QString, QVariantMap> available;
+  for (const QVariant &item : m_model->libraryTracks()) {
+    const QVariantMap track = item.toMap();
+    available.insert(track.value(QStringLiteral("filePath")).toString(), track);
+  }
+  const QString currentPath = currentFilePath();
+  QVariantList refreshedQueue;
+  int current = -1;
+  for (const QVariant &item : std::as_const(m_queue)) {
+    const QString path = item.toMap().value(QStringLiteral("filePath")).toString();
+    if (!available.contains(path))
+      continue;
+    if (path == currentPath)
+      current = refreshedQueue.size();
+    refreshedQueue.append(available.value(path));
+  }
+  if (refreshedQueue.size() != m_queue.size() || current != m_currentIndex)
+    m_history.clear();
+  m_queue = refreshedQueue;
+  if (current < 0) {
+    m_player.stop();
+    m_currentIndex = -1;
+    m_currentTrack.clear();
+    m_settings.remove(QStringLiteral("player/currentFile"));
+    m_settings.remove(QStringLiteral("player/position"));
+    emit trackChanged();
     return;
-  m_currentIndex = index;
-  if (index >= 0)
-    m_currentTrack = m_model->trackAt(index);
-  emit trackChanged();
+  }
+  const QVariantMap track = m_queue.at(current).toMap();
+  if (current != m_currentIndex || track != m_currentTrack) {
+    m_currentIndex = current;
+    m_currentTrack = track;
+    emit trackChanged();
+  }
 }
 
 void PlayerController::savePlaybackState() {
@@ -196,7 +343,7 @@ void PlayerController::play() {
 void PlayerController::pause() { m_player.pause(); }
 
 int PlayerController::nextIndex(bool forward) const {
-  const int count = m_model->rowCount();
+  const int count = m_queue.size();
   if (count <= 0)
     return -1;
   if (m_shuffle && count > 1) {
@@ -216,7 +363,7 @@ int PlayerController::nextIndex(bool forward) const {
 void PlayerController::next() {
   const int index = nextIndex(true);
   if (index >= 0)
-    playTrack(index);
+    playQueueIndex(index);
   else
     m_player.stop();
 }
@@ -238,7 +385,7 @@ void PlayerController::previous() {
   }
   const int index = nextIndex(false);
   if (index >= 0)
-    playTrack(index);
+    playQueueIndex(index);
 }
 
 void PlayerController::seek(qint64 position) {

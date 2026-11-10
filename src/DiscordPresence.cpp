@@ -6,6 +6,7 @@
 #include <QDateTime>
 #include <QDebug>
 #include <QDir>
+#include <QFileInfo>
 #include <QJsonArray>
 #include <QJsonDocument>
 #include <QJsonObject>
@@ -53,17 +54,21 @@ DiscordPresence::DiscordPresence(PlayerController *player, QObject *parent)
 
   m_retryTimer.setSingleShot(true);
   m_retryTimer.setInterval(10000);
+  m_handshakeTimer.setSingleShot(true);
+  m_handshakeTimer.setInterval(5000);
   m_updateTimer.setSingleShot(true);
   m_updateTimer.setInterval(activityDebounceMs);
 
   connect(&m_retryTimer, &QTimer::timeout, this,
           &DiscordPresence::connectToDiscord);
+  connect(&m_handshakeTimer, &QTimer::timeout, this,
+          &DiscordPresence::tryNextSocket);
   connect(&m_updateTimer, &QTimer::timeout, this,
           &DiscordPresence::sendActivity);
   connect(&m_socket, &QLocalSocket::connected, this, [this] {
-    m_tryingSockets = false;
     m_retryTimer.stop();
     setStatus(QStringLiteral("Connecting to Discord"));
+    m_handshakeTimer.start();
     sendFrame(0, {{QStringLiteral("v"), 1},
                   {QStringLiteral("client_id"), m_applicationId}});
   });
@@ -108,7 +113,9 @@ void DiscordPresence::setEnabled(bool enabled) {
     connectToDiscord();
   } else {
     m_retryTimer.stop();
+    m_handshakeTimer.stop();
     m_updateTimer.stop();
+    m_tryingSockets = false;
     clearActivity();
     m_socket.flush();
     m_socket.disconnectFromServer();
@@ -130,6 +137,7 @@ void DiscordPresence::setApplicationId(const QString &applicationId) {
 
 void DiscordPresence::reconnect() {
   m_retryTimer.stop();
+  m_handshakeTimer.stop();
   m_updateTimer.stop();
   m_tryingSockets = true;
   m_socket.abort();
@@ -160,10 +168,14 @@ void DiscordPresence::connectToDiscord() {
 }
 
 void DiscordPresence::tryNextSocket() {
+  m_handshakeTimer.stop();
   m_socket.abort();
+  m_buffer.clear();
   if (m_candidateIndex >= m_candidates.size()) {
     m_tryingSockets = false;
-    setStatus(QStringLiteral("Discord is not running"));
+    setStatus(m_candidates.isEmpty()
+                  ? QStringLiteral("Discord is not running")
+                  : QStringLiteral("Discord IPC did not respond"));
     m_retryTimer.start();
     return;
   }
@@ -184,8 +196,12 @@ QStringList DiscordPresence::socketCandidates() const {
 
   QStringList candidates;
   for (const QString &directory : std::as_const(directories)) {
-    for (int index = 0; index < 10; ++index)
-      candidates << directory + QStringLiteral("/discord-ipc-%1").arg(index);
+    for (int index = 0; index < 10; ++index) {
+      const QString candidate =
+          directory + QStringLiteral("/discord-ipc-%1").arg(index);
+      if (QFileInfo::exists(candidate))
+        candidates << candidate;
+    }
   }
   return candidates;
 }
@@ -199,6 +215,7 @@ void DiscordPresence::sendFrame(quint32 opcode, const QJsonObject &payload) {
   qToLittleEndian(static_cast<quint32>(json.size()), frame.data() + 4);
   frame.append(json);
   m_socket.write(frame);
+  m_socket.flush();
 }
 
 void DiscordPresence::processIncoming() {
@@ -222,6 +239,8 @@ void DiscordPresence::processIncoming() {
     }
     const QString event = message.value(QStringLiteral("evt")).toString();
     if (event == QStringLiteral("READY")) {
+      m_handshakeTimer.stop();
+      m_tryingSockets = false;
       setReady(true);
       setStatus(QStringLiteral("Connected"));
       m_lastActivitySent.invalidate();

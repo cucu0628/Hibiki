@@ -1,56 +1,37 @@
 import QtQuick
 
-// Cover frame in the shell's media style: accent hairline, a dimmed image and
-// an icon placeholder while nothing is loaded.
+// Album artwork on a rounded Vellum tile. The corners are baked into the
+// decoded image by the cover provider, so a tile costs one texture and no
+// effect layer.
 Rectangle {
     id: root
 
-    property url source
-    property int decodeSize: 256
+    // Local file path of the cover; empty shows the placeholder note.
+    property string path
+    // Decoded pixel size; defaults to the tile's on-screen size.
+    property int decodeSize: Math.ceil(Math.max(width, height) * Screen.devicePixelRatio)
 
-    color: Theme.background
-    border.width: 1
-    border.color: Theme.accent
-    clip: true
+    color: Theme.raised
+    radius: 6
 
     Image {
         id: cover
         anchors.fill: parent
-        anchors.margins: 1
-        source: root.source
-        // Thumbnails come from yt-dlp at video resolution; decoding them at
-        // display size keeps list scrolling cheap.
+        source: root.path && root.decodeSize > 0 && root.width > 0
+                ? "image://cover/" + (root.radius / root.width).toFixed(3) + "/"
+                  + encodeURIComponent(root.path)
+                : ""
         sourceSize.width: root.decodeSize
         sourceSize.height: root.decodeSize
-        fillMode: Image.PreserveAspectCrop
         asynchronous: true
         cache: true
-        visible: status === Image.Ready
     }
 
-    Rectangle {
-        anchors.fill: cover
-        color: Theme.background
-        opacity: 0.16
-        visible: cover.visible
-    }
-
-    Text {
+    VellumIcon {
         anchors.centerIn: parent
-        visible: !cover.visible
-        text: ""
-        color: Theme.accent
-        opacity: 0.6
-        font.family: "MesloLGS Nerd Font Mono"
-        font.pixelSize: Math.max(16, parent.width * 0.42)
-    }
-
-    Rectangle {
-        anchors.left: parent.left
-        anchors.right: parent.right
-        anchors.bottom: parent.bottom
-        height: 3
-        color: Theme.accent
-        opacity: 0.9
+        visible: cover.status !== Image.Ready
+        name: "music_note"
+        color: Theme.muted
+        iconSize: Math.max(16, parent.width * 0.42)
     }
 }

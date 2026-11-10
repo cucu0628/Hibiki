@@ -5,38 +5,59 @@ import QtQuick.Layouts
 Item {
     id: root
 
+    function isActive(status) {
+        return status === "downloading" || status === "processing" || status === "retrying"
+    }
+
     ColumnLayout {
         anchors.fill: parent
-        spacing: 14
+        spacing: 12
 
         VellumPanel {
             Layout.fillWidth: true
-            implicitHeight: 108
-            title: "YOUTUBE IMPORT"
-            trailing: Downloads.toolsAvailable ? "YT-DLP / FFMPEG READY" : "TOOLS MISSING"
+            implicitHeight: chromeHeight + importColumn.implicitHeight
+            title: "Import from YouTube"
+            trailing: Downloads.toolsAvailable ? "" : "yt-dlp or FFmpeg missing"
 
-            RowLayout {
-                anchors.fill: parent
-                spacing: 10
+            ColumnLayout {
+                id: importColumn
+                anchors.left: parent.left
+                anchors.right: parent.right
+                anchors.top: parent.top
+                spacing: 8
 
-                VellumField {
-                    id: urlInput
+                RowLayout {
                     Layout.fillWidth: true
-                    indicator: ""
-                    placeholderText: "YouTube video or playlist URL"
-                    onAccepted: downloadButton.clicked()
+                    spacing: 8
+
+                    VellumField {
+                        id: urlInput
+                        Layout.fillWidth: true
+                        indicator: "youtube"
+                        placeholderText: "Video or playlist URL"
+                        enabled: Downloads.toolsAvailable
+                        onAccepted: if (downloadButton.enabled) downloadButton.clicked()
+                    }
+
+                    AccentButton {
+                        id: downloadButton
+                        text: Downloads.busy ? "Queue" : "Download"
+                        iconText: "download"
+                        enabled: urlInput.text.trim().length > 0 && Downloads.toolsAvailable
+                        onClicked: {
+                            if (Downloads.enqueue(urlInput.text))
+                                urlInput.clear()
+                        }
+                    }
                 }
 
-                AccentButton {
-                    id: downloadButton
-                    text: Downloads.busy ? "ADD TO QUEUE" : "DOWNLOAD"
-                    iconText: ""
-                    implicitHeight: 38
-                    enabled: urlInput.text.trim().length > 0 && Downloads.toolsAvailable
-                    onClicked: {
-                        if (Downloads.enqueue(urlInput.text))
-                            urlInput.clear()
-                    }
+                Text {
+                    Layout.fillWidth: true
+                    visible: !Downloads.toolsAvailable
+                    text: "Install yt-dlp and FFmpeg, then restart Hibiki."
+                    color: Theme.muted
+                    font.pixelSize: 10
+                    wrapMode: Text.WordWrap
                 }
             }
         }
@@ -44,119 +65,122 @@ Item {
         VellumPanel {
             Layout.fillWidth: true
             Layout.fillHeight: true
-            title: "DOWNLOAD QUEUE"
-            trailing: jobsView.count + (jobsView.count === 1 ? " JOB" : " JOBS")
+            title: "Queue"
+            trailing: jobsView.count === 0 ? ""
+                    : Downloads.busy ? "Downloading" : jobsView.count + (jobsView.count === 1 ? " job" : " jobs")
 
             ColumnLayout {
                 anchors.fill: parent
-                spacing: 10
-
-                RowLayout {
-                    Layout.fillWidth: true
-
-                    Text {
-                        Layout.fillWidth: true
-                        text: Downloads.busy ? "Download running" : "Queue idle"
-                        color: Theme.muted
-                        font.pixelSize: 10
-                    }
-
-                    AccentButton {
-                        text: "CLEAR FINISHED"
-                        iconText: "󰆴"
-                        outlined: true
-                        onClicked: Downloads.clearFinished()
-                    }
-                }
+                spacing: 8
 
                 ListView {
                     id: jobsView
                     Layout.fillWidth: true
                     Layout.fillHeight: true
-                    spacing: 6
+                    spacing: 4
                     clip: true
                     model: Downloads.jobs
                     boundsBehavior: Flickable.StopAtBounds
 
                     delegate: VellumCard {
+                        id: job
                         required property var modelData
+                        readonly property bool running: root.isActive(modelData.status)
+
                         width: ListView.view.width
-                        height: 70
-                        accentLine: modelData.status === "downloading"
-                                 || modelData.status === "processing"
-                        color: Theme.background
+                        height: 60
+                        highlighted: running
 
-                        Column {
+                        RowLayout {
                             anchors.fill: parent
-                            anchors.margins: 11
-                            anchors.leftMargin: 15
-                            spacing: 6
+                            anchors.leftMargin: 12
+                            anchors.rightMargin: 8
+                            spacing: 8
 
-                            Item {
-                                width: parent.width
-                                height: 15
+                            ColumnLayout {
+                                Layout.fillWidth: true
+                                spacing: 4
+
+                                RowLayout {
+                                    Layout.fillWidth: true
+                                    spacing: 8
+
+                                    Text {
+                                        Layout.fillWidth: true
+                                        text: job.modelData.title
+                                        textFormat: Text.PlainText
+                                        color: Theme.foreground
+                                        font.pixelSize: 12
+                                        font.weight: Font.Medium
+                                        elide: Text.ElideRight
+                                    }
+                                    Text {
+                                        text: job.modelData.status
+                                        color: job.modelData.status === "failed" ? Theme.error
+                                             : job.running ? Theme.accent : Theme.muted
+                                        font.pixelSize: 10
+                                        font.weight: Font.DemiBold
+                                    }
+                                }
+
+                                VellumSlider {
+                                    Layout.fillWidth: true
+                                    implicitHeight: 6
+                                    value: Math.max(0, job.modelData.progress)
+                                    interactive: false
+                                    fillColor: job.modelData.status === "failed" ? Theme.error : Theme.accent
+                                }
 
                                 Text {
-                                    anchors.left: parent.left
-                                    anchors.right: statusText.left
-                                    anchors.rightMargin: 12
-                                    anchors.verticalCenter: parent.verticalCenter
-                                    text: modelData.title
-                                    color: Theme.foreground
-                                    font.pixelSize: 12
-                                    font.weight: Font.DemiBold
+                                    Layout.fillWidth: true
+                                    text: job.modelData.detail || job.modelData.url
+                                    textFormat: Text.PlainText
+                                    color: Theme.muted
+                                    font.pixelSize: 10
                                     elide: Text.ElideRight
                                 }
-                                Text {
-                                    id: statusText
-                                    anchors.right: parent.right
-                                    anchors.verticalCenter: parent.verticalCenter
-                                    text: modelData.status.toUpperCase()
-                                    color: modelData.status === "failed" ? "#eb6f92" : Theme.accent
-                                    font.pixelSize: 9
-                                    font.bold: true
-                                    font.letterSpacing: 1
-                                }
                             }
 
-                            VellumSlider {
-                                width: parent.width
-                                implicitHeight: 6
-                                value: modelData.progress
-                                interactive: false
-                            }
-
-                            Text {
-                                width: parent.width
-                                text: modelData.detail || modelData.url
-                                color: Theme.muted
-                                font.pixelSize: 10
-                                elide: Text.ElideRight
+                            IconButton {
+                                visible: job.running
+                                glyph: "close"
+                                iconSize: 14
+                                description: "Cancel download"
+                                onClicked: Downloads.cancelCurrent()
                             }
                         }
                     }
 
                     Column {
                         anchors.centerIn: parent
-                        spacing: 10
+                        width: Math.min(jobsView.width - 32, 260)
+                        spacing: 12
                         visible: jobsView.count === 0
 
-                        Text {
+                        VellumIcon {
                             anchors.horizontalCenter: parent.horizontalCenter
-                            text: ""
-                            color: Theme.accent
-                            opacity: 0.45
-                            font.family: "MesloLGS Nerd Font Mono"
-                            font.pixelSize: 40
+                            name: "download"
+                            color: Theme.outline
+                            iconSize: 32
                         }
                         Text {
-                            anchors.horizontalCenter: parent.horizontalCenter
-                            text: Downloads.toolsAvailable ? "No downloads in the queue"
-                                                           : "yt-dlp or FFmpeg is missing"
+                            width: parent.width
+                            text: "Paste a link above; finished tracks land in your library."
                             color: Theme.muted
                             font.pixelSize: 12
+                            wrapMode: Text.WordWrap
+                            horizontalAlignment: Text.AlignHCenter
                         }
                     }
+                }
+
+                AccentButton {
+                    Layout.alignment: Qt.AlignRight
+                    visible: jobsView.count > 0
+                    text: "Clear finished"
+                    iconText: "delete_sweep"
+                    outlined: true
+                    onClicked: Downloads.clearFinished()
                 }
             }
         }

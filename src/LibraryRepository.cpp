@@ -62,7 +62,25 @@ bool LibraryRepository::initialize() {
     m_lastError = query.lastError().text();
     return false;
   }
-  return addMissingColumns();
+  if (!addMissingColumns())
+    return false;
+  if (!query.exec(QStringLiteral(
+          "CREATE TABLE IF NOT EXISTS playlists ("
+          "id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT NOT NULL)")) ||
+      !query.exec(QStringLiteral(
+          "CREATE TABLE IF NOT EXISTS playlist_tracks ("
+          "playlist_id INTEGER NOT NULL REFERENCES playlists(id) ON DELETE CASCADE,"
+          "track_id INTEGER NOT NULL REFERENCES tracks(id) ON DELETE CASCADE,"
+          "position INTEGER NOT NULL, PRIMARY KEY(playlist_id, track_id))"))) {
+    m_lastError = query.lastError().text();
+    return false;
+  }
+  QSqlQuery foreignKeys(m_database);
+  if (!foreignKeys.exec(QStringLiteral("PRAGMA foreign_keys=ON"))) {
+    m_lastError = foreignKeys.lastError().text();
+    return false;
+  }
+  return true;
 }
 
 bool LibraryRepository::addMissingColumns() {
@@ -162,6 +180,97 @@ QVariantList LibraryRepository::tracks() const {
     result.append(track);
   }
   return result;
+}
+
+QVariantList LibraryRepository::playlists() const {
+  QVariantList result;
+  QSqlQuery query(m_database);
+  if (!query.exec(QStringLiteral(
+          "SELECT p.id,p.name,COUNT(pt.track_id) FROM playlists p "
+          "LEFT JOIN playlist_tracks pt ON pt.playlist_id=p.id "
+          "GROUP BY p.id ORDER BY p.id"))) {
+    m_lastError = query.lastError().text();
+    return result;
+  }
+  while (query.next())
+    result.append(QVariantMap{{QStringLiteral("id"), query.value(0)},
+                              {QStringLiteral("name"), query.value(1)},
+                              {QStringLiteral("count"), query.value(2)}});
+  return result;
+}
+
+QList<qint64> LibraryRepository::playlistTrackIds(qint64 playlistId) const {
+  QList<qint64> result;
+  QSqlQuery query(m_database);
+  query.prepare(QStringLiteral("SELECT track_id FROM playlist_tracks WHERE "
+                               "playlist_id=:id ORDER BY position, rowid"));
+  query.bindValue(QStringLiteral(":id"), playlistId);
+  if (!query.exec()) {
+    m_lastError = query.lastError().text();
+    return result;
+  }
+  while (query.next())
+    result.append(query.value(0).toLongLong());
+  return result;
+}
+
+qint64 LibraryRepository::createPlaylist(const QString &name) {
+  QSqlQuery query(m_database);
+  query.prepare(QStringLiteral("INSERT INTO playlists(name) VALUES(:name)"));
+  query.bindValue(QStringLiteral(":name"), name);
+  if (!query.exec()) {
+    m_lastError = query.lastError().text();
+    return -1;
+  }
+  return query.lastInsertId().toLongLong();
+}
+
+bool LibraryRepository::renamePlaylist(qint64 id, const QString &name) {
+  QSqlQuery query(m_database);
+  query.prepare(QStringLiteral("UPDATE playlists SET name=:name WHERE id=:id"));
+  query.bindValue(QStringLiteral(":name"), name);
+  query.bindValue(QStringLiteral(":id"), id);
+  if (query.exec())
+    return query.numRowsAffected() > 0;
+  m_lastError = query.lastError().text();
+  return false;
+}
+
+bool LibraryRepository::deletePlaylist(qint64 id) {
+  QSqlQuery query(m_database);
+  query.prepare(QStringLiteral("DELETE FROM playlists WHERE id=:id"));
+  query.bindValue(QStringLiteral(":id"), id);
+  if (query.exec())
+    return query.numRowsAffected() > 0;
+  m_lastError = query.lastError().text();
+  return false;
+}
+
+bool LibraryRepository::addToPlaylist(qint64 playlistId, qint64 trackId) {
+  QSqlQuery query(m_database);
+  query.prepare(QStringLiteral(
+      "INSERT OR IGNORE INTO playlist_tracks(playlist_id,track_id,position) "
+      "SELECT :playlist_id,:track_id,COALESCE(MAX(position)+1,0) "
+      "FROM playlist_tracks WHERE playlist_id=:position_id"));
+  query.bindValue(QStringLiteral(":playlist_id"), playlistId);
+  query.bindValue(QStringLiteral(":track_id"), trackId);
+  query.bindValue(QStringLiteral(":position_id"), playlistId);
+  if (query.exec())
+    return true;
+  m_lastError = query.lastError().text();
+  return false;
+}
+
+bool LibraryRepository::removeFromPlaylist(qint64 playlistId, qint64 trackId) {
+  QSqlQuery query(m_database);
+  query.prepare(QStringLiteral("DELETE FROM playlist_tracks WHERE "
+                               "playlist_id=:playlist_id AND track_id=:track_id"));
+  query.bindValue(QStringLiteral(":playlist_id"), playlistId);
+  query.bindValue(QStringLiteral(":track_id"), trackId);
+  if (query.exec())
+    return true;
+  m_lastError = query.lastError().text();
+  return false;
 }
 
 QHash<QString, LibraryRepository::FileStamp>

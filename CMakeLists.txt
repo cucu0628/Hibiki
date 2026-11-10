@@ -32,6 +32,8 @@ qt_add_executable(hibiki
     src/main.cpp
     src/ApplicationController.cpp
     src/ApplicationController.h
+    src/CoverImageProvider.cpp
+    src/CoverImageProvider.h
     src/DownloadManager.cpp
     src/DownloadManager.h
     src/DiscordPresence.cpp
@@ -59,7 +61,11 @@ qt_add_qml_module(hibiki
         qml/components/Artwork.qml
         qml/components/DownloadPanel.qml
         qml/components/NowPlayingView.qml
+        qml/components/VisualizerArtwork.qml
+        qml/components/VellumDialog.qml
         qml/components/VellumField.qml
+        qml/components/VellumGlyphs.js
+        qml/components/VellumIcon.qml
         qml/components/VellumPanel.qml
         qml/components/SettingsView.qml
         qml/components/IconButton.qml
@@ -67,6 +73,7 @@ qt_add_qml_module(hibiki
         qml/components/NowPlayingBar.qml
         qml/components/VellumCard.qml
         qml/components/VellumSlider.qml
+        qml/components/VellumSwitch.qml
         qml/components/SectionLabel.qml
 )
 
@@ -96,6 +103,16 @@ install(TARGETS hibiki
 )
 install(FILES hibiki.desktop DESTINATION share/applications)
 install(FILES assets/hibiki.svg DESTINATION share/icons/hicolor/scalable/apps)
+install(CODE [[
+    set(desktop_file "$ENV{DESTDIR}${CMAKE_INSTALL_PREFIX}/share/applications/hibiki.desktop")
+    file(READ "${desktop_file}" desktop_entry)
+    string(REPLACE "Exec=hibiki"
+        "Exec=${CMAKE_INSTALL_PREFIX}/bin/hibiki" desktop_entry "${desktop_entry}")
+    string(REPLACE "Icon=hibiki"
+        "Icon=${CMAKE_INSTALL_PREFIX}/share/icons/hicolor/scalable/apps/hibiki.svg"
+        desktop_entry "${desktop_entry}")
+    file(WRITE "${desktop_file}" "${desktop_entry}")
+]])
 
 enable_testing()
 
@@ -103,7 +120,9 @@ qt_add_executable(hibiki_tests
     tests/tst_library.cpp
     src/LibraryRepository.cpp
     src/LibraryRepository.h
+    src/TrackModel.cpp
+    src/TrackModel.h
 )
-target_link_libraries(hibiki_tests PRIVATE Qt6::Core Qt6::Sql Qt6::Test)
+target_link_libraries(hibiki_tests PRIVATE Qt6::Concurrent Qt6::Core Qt6::Sql Qt6::Test)
 target_include_directories(hibiki_tests PRIVATE src)
 add_test(NAME hibiki_tests COMMAND hibiki_tests)

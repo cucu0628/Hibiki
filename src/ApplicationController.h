@@ -9,6 +9,7 @@ class DiscordPresence;
 class MprisService;
 class PlayerController;
 class QQmlApplicationEngine;
+class QQuickWindow;
 class ThemeManager;
 class TrackModel;
 class TrayController;
@@ -36,6 +37,8 @@ public:
   Q_INVOKABLE void quit();
 
 private:
+  void releaseHiddenWindow(QQuickWindow *window);
+
   QQmlApplicationEngine *m_engine;
   QString m_musicDirectory;
   std::unique_ptr<TrackModel> m_tracks;

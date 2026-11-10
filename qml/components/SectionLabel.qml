@@ -1,9 +1,10 @@
 import QtQuick
 
 Text {
-    color: Theme.accent
-    font.pixelSize: 9
-    font.bold: true
-    font.letterSpacing: 3
-    text: "SECTION"
+    color: Theme.muted
+    font.pixelSize: 10
+    font.weight: Font.DemiBold
+    font.letterSpacing: 1
+    font.capitalization: Font.AllUppercase
+    text: "Section"
 }

@@ -2,24 +2,33 @@ import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
 import Hibiki
-import "components"
 
 ApplicationWindow {
     id: window
-    width: 1080
-    height: 720
-    minimumWidth: 820
-    minimumHeight: 560
+    width: 760
+    height: 600
+    minimumWidth: 400
+    minimumHeight: 460
     visible: true
     title: "Hibiki"
     color: Theme.background
 
     property int page: 0
+    // Icon-only tabs below this width; the library drops secondary columns.
+    readonly property bool compact: width < 620
+    readonly property bool wideMode: width >= 1180
+    readonly property bool libraryEmpty: Tracks.libraryCount === 0
+    readonly property bool showWidePlayer: wideMode && !libraryEmpty
+
+    readonly property var pages: [
+        { label: "Library", icon: "library_music" },
+        { label: "Playing", icon: "play_circle" },
+        { label: "Downloads", icon: "download" },
+        { label: "Settings", icon: "settings" }
+    ]
 
     onPageChanged: {
-        if (page === 1)
-            stageLoader.visited = true
-        else if (page === 2)
+        if (page === 2)
             downloadsLoader.visited = true
         else if (page === 3)
             settingsLoader.visited = true
@@ -31,215 +40,241 @@ ApplicationWindow {
         App.hideToTray()
     }
 
-    background: Rectangle { color: Theme.background }
+    function openPlaylistEditor(id, name) {
+        playlistEditor.playlistId = id
+        playlistName.text = name || ""
+        playlistEditor.open()
+        playlistName.forceActiveFocus()
+    }
 
-    RowLayout {
+    Shortcut {
+        sequence: "Space"
+        onActivated: Player.toggle()
+    }
+    Shortcut {
+        sequences: [StandardKey.Find]
+        onActivated: {
+            window.page = 0
+            library.focusSearch()
+        }
+    }
+    Shortcut { sequence: "Ctrl+1"; onActivated: window.page = 0 }
+    Shortcut { sequence: "Ctrl+2"; onActivated: window.page = 1 }
+    Shortcut { sequence: "Ctrl+3"; onActivated: window.page = 2 }
+    Shortcut { sequence: "Ctrl+4"; onActivated: window.page = 3 }
+
+    VellumDialog {
+        id: playlistEditor
+        property int playlistId: -1
+        title: playlistId < 0 ? "New playlist" : "Rename playlist"
+
+        contentItem: ColumnLayout {
+            spacing: 16
+            VellumField {
+                id: playlistName
+                Layout.fillWidth: true
+                placeholderText: "Playlist name"
+                onAccepted: playlistEditor.save()
+            }
+            RowLayout {
+                Layout.alignment: Qt.AlignRight
+                spacing: 8
+                AccentButton { text: "Cancel"; outlined: true; onClicked: playlistEditor.close() }
+                AccentButton {
+                    text: playlistEditor.playlistId < 0 ? "Create" : "Save"
+                    enabled: playlistName.text.trim().length > 0
+                    onClicked: playlistEditor.save()
+                }
+            }
+        }
+        function save() {
+            if (!playlistName.text.trim())
+                return
+            if (playlistId < 0) {
+                let id = Tracks.createPlaylist(playlistName.text)
+                if (id >= 0) {
+                    Tracks.selectedPlaylistId = id
+                    window.page = 0
+                    close()
+                }
+            } else if (Tracks.renamePlaylist(playlistId, playlistName.text)) {
+                close()
+            }
+        }
+    }
+
+    VellumDialog {
+        id: deletePlaylistDialog
+        title: "Delete playlist?"
+
+        contentItem: ColumnLayout {
+            spacing: 16
+            Text {
+                Layout.fillWidth: true
+                text: "“" + Tracks.selectedPlaylistName + "” will be removed. Its tracks stay in your library."
+                textFormat: Text.PlainText
+                color: Theme.muted
+                wrapMode: Text.WordWrap
+                font.pixelSize: 12
+            }
+            RowLayout {
+                Layout.alignment: Qt.AlignRight
+                spacing: 8
+                AccentButton { text: "Cancel"; outlined: true; onClicked: deletePlaylistDialog.close() }
+                AccentButton {
+                    text: "Delete"
+                    onClicked: {
+                        Tracks.deletePlaylist(Tracks.selectedPlaylistId)
+                        deletePlaylistDialog.close()
+                    }
+                }
+            }
+        }
+    }
+
+    background: Rectangle {
+        color: Theme.background
+    }
+
+    ColumnLayout {
         anchors.fill: parent
-        spacing: 0
+        anchors.margins: 12
+        spacing: 12
 
-        Rectangle {
-            id: sidebar
-            Layout.preferredWidth: 196
-            Layout.fillHeight: true
-            color: Theme.surface
+        // Header: wordmark on the left, page tabs on the right.
+        RowLayout {
+            Layout.fillWidth: true
+            Layout.preferredHeight: 32
+            Layout.leftMargin: 4
+            spacing: 12
 
-            Rectangle {
-                anchors.right: parent.right
-                anchors.top: parent.top
-                anchors.bottom: parent.bottom
-                width: 1
-                color: Theme.outline
+            Text {
+                Layout.fillWidth: true
+                text: "Hibiki"
+                color: Theme.foreground
+                font.family: "serif"
+                font.pixelSize: 20
+                font.weight: Font.Medium
+                elide: Text.ElideRight
             }
 
-            ColumnLayout {
-                anchors.fill: parent
-                anchors.margins: 16
-                spacing: 12
-
-                RowLayout {
-                    Layout.fillWidth: true
-                    spacing: 11
-
-                    Rectangle {
-                        Layout.preferredWidth: 38
-                        Layout.preferredHeight: 38
-                        color: Theme.accent
-
-                        Text {
-                            anchors.centerIn: parent
-                            text: "H"
-                            color: Theme.background
-                            font.pixelSize: 20
-                            font.weight: Font.DemiBold
-                        }
-                    }
-
-                    ColumnLayout {
-                        Layout.fillWidth: true
-                        spacing: 3
-
-                        Text {
-                            text: "HIBIKI"
-                            color: Theme.foreground
-                            font.pixelSize: 12
-                            font.letterSpacing: 3
-                            font.bold: true
-                        }
-                        Text {
-                            Layout.fillWidth: true
-                            text: "MUSIC PLAYER"
-                            color: Theme.muted
-                            font.pixelSize: 9
-                            font.letterSpacing: 1
-                            elide: Text.ElideRight
-                        }
-                    }
-                }
-
-                Rectangle {
-                    Layout.fillWidth: true
-                    Layout.topMargin: 2
-                    implicitHeight: 1
-                    color: Theme.muted
-                    opacity: 0.35
-                }
+            Row {
+                id: tabs
+                spacing: 2
 
                 Repeater {
-                    model: [
-                        { label: "LIBRARY", icon: "", index: 0 },
-                        { label: "NOW PLAYING", icon: "", index: 1 },
-                        { label: "DOWNLOADS", icon: "", index: 2 },
-                        { label: "SETTINGS", icon: "", index: 3 }
-                    ]
+                    model: window.pages
 
                     delegate: Rectangle {
-                        id: navChip
+                        id: tab
                         required property var modelData
-                        readonly property bool selected: window.page === modelData.index
+                        required property int index
+                        readonly property bool selected: window.page === index
 
-                        Layout.fillWidth: true
-                        implicitHeight: 34
-                        radius: 0
-                        color: navChip.selected ? Theme.accent
-                             : navMouse.containsMouse ? Theme.hover : "transparent"
-                        border.width: 1
-                        border.color: navChip.selected ? Theme.accent : Theme.line
-                        Behavior on color { ColorAnimation { duration: 110; easing.type: Easing.OutCubic } }
+                        width: tabRow.implicitWidth + (window.compact ? 16 : 20)
+                        height: 32
+                        radius: 6
+                        color: selected ? Theme.surface
+                             : tabArea.containsMouse ? Theme.hover : "transparent"
+                        Behavior on color { ColorAnimation { duration: 110 } }
+
+                        Accessible.role: Accessible.PageTab
+                        Accessible.name: modelData.label
 
                         Row {
-                            anchors.left: parent.left
-                            anchors.leftMargin: 11
-                            anchors.right: parent.right
-                            anchors.rightMargin: 11
-                            anchors.verticalCenter: parent.verticalCenter
-                            spacing: 9
+                            id: tabRow
+                            anchors.centerIn: parent
+                            spacing: 6
 
-                            Text {
+                            VellumIcon {
                                 anchors.verticalCenter: parent.verticalCenter
-                                text: navChip.modelData.icon
-                                color: navChip.selected ? Theme.background : Theme.accent
-                                font.family: "MesloLGS Nerd Font Mono"
-                                font.pixelSize: 14
+                                name: tab.modelData.icon
+                                iconSize: 15
+                                color: tab.selected ? Theme.accent : Theme.muted
                             }
                             Text {
                                 anchors.verticalCenter: parent.verticalCenter
-                                text: navChip.modelData.label
-                                color: navChip.selected ? Theme.background : Theme.foreground
-                                font.pixelSize: 9
-                                font.letterSpacing: 2
-                                font.bold: true
+                                visible: !window.compact
+                                text: tab.modelData.label
+                                color: tab.selected ? Theme.foreground : Theme.muted
+                                font.pixelSize: 12
+                                font.weight: tab.selected ? Font.DemiBold : Font.Normal
                             }
                         }
 
                         MouseArea {
-                            id: navMouse
+                            id: tabArea
                             anchors.fill: parent
                             hoverEnabled: true
                             cursorShape: Qt.PointingHandCursor
-                            onClicked: window.page = navChip.modelData.index
+                            onClicked: window.page = tab.index
                         }
-                    }
-                }
 
-                Item { Layout.fillHeight: true }
-
-                Rectangle {
-                    Layout.fillWidth: true
-                    implicitHeight: 1
-                    color: Theme.accent
-                    opacity: 0.26
-                }
-
-                ColumnLayout {
-                    Layout.fillWidth: true
-                    spacing: 4
-
-                    SectionLabel { text: "THEME" }
-                    Text {
-                        Layout.fillWidth: true
-                        text: Theme.themeName.toUpperCase()
-                        color: Theme.foreground
-                        font.pixelSize: 10
-                        font.letterSpacing: 1
-                        elide: Text.ElideRight
-                    }
-                    Text {
-                        Layout.fillWidth: true
-                        Layout.topMargin: 2
-                        text: App.musicDirectory
-                        color: Theme.muted
-                        font.pixelSize: 8
-                        wrapMode: Text.WrapAnywhere
-                        maximumLineCount: 3
-                        elide: Text.ElideRight
+                        ToolTip.visible: window.compact && tabArea.containsMouse
+                        ToolTip.text: modelData.label
+                        ToolTip.delay: 600
                     }
                 }
             }
         }
 
-        ColumnLayout {
+        StackLayout {
             Layout.fillWidth: true
             Layout.fillHeight: true
-            Layout.margins: 16
-            spacing: 14
+            currentIndex: window.page
 
-            StackLayout {
-                Layout.fillWidth: true
-                Layout.fillHeight: true
-                currentIndex: window.page
+            RowLayout {
+                spacing: 12
 
-                LibraryView { }
+                LibraryView {
+                    id: library
+                    Layout.fillWidth: true
+                    Layout.fillHeight: true
+                    compact: window.compact
+                    onDownloadRequested: window.page = 2
+                    onCreatePlaylistRequested: window.openPlaylistEditor(-1, "")
+                    onRenameRequested: window.openPlaylistEditor(Tracks.selectedPlaylistId,
+                                                                 Tracks.selectedPlaylistName)
+                    onDeleteRequested: deletePlaylistDialog.open()
+                }
 
-                // The secondary pages are only built once they are opened, so
-                // the first frame carries just the library.
                 Loader {
-                    id: stageLoader
-                    property bool visited: false
-                    active: visited
+                    Layout.preferredWidth: 380
+                    Layout.fillHeight: true
+                    visible: active
+                    active: window.showWidePlayer
                     sourceComponent: NowPlayingView { }
                 }
-
-                Loader {
-                    id: downloadsLoader
-                    property bool visited: false
-                    active: visited
-                    sourceComponent: DownloadPanel { }
-                }
-
-                Loader {
-                    id: settingsLoader
-                    property bool visited: false
-                    active: visited
-                    sourceComponent: SettingsView { }
-                }
             }
 
-            // The stage page carries its own transport, so the bar would only
-            // repeat it there.
-            NowPlayingBar {
-                Layout.fillWidth: true
-                visible: window.page !== 1
+            // Everything the player shows lives in Player, so the page (and
+            // its visualizer canvas) is only kept while it is on screen.
+            Loader {
+                active: window.page === 1
+                sourceComponent: NowPlayingView { }
             }
+
+            Loader {
+                id: downloadsLoader
+                property bool visited: false
+                active: visited
+                sourceComponent: DownloadPanel { }
+            }
+
+            Loader {
+                id: settingsLoader
+                property bool visited: false
+                active: visited
+                sourceComponent: SettingsView { }
+            }
+        }
+
+        NowPlayingBar {
+            Layout.fillWidth: true
+            compact: window.compact
+            visible: !window.libraryEmpty && window.page !== 1
+                     && !(window.page === 0 && window.showWidePlayer)
+            onOpenRequested: window.page = 1
         }
     }
 }

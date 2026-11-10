@@ -1,7 +1,6 @@
 import QtQuick
 
-// Flat rail in the shell's style: it thickens under the pointer and the fill
-// eases towards its new position unless it is being dragged.
+// Thin Vellum timeline: a hairline track that thickens under the pointer.
 Item {
     id: root
 
@@ -10,12 +9,24 @@ Item {
     property real value: 0
     property bool interactive: true
     property real wheelStep: (to - from) / 20
+    property color fillColor: Theme.accent
+    property string description: ""
     signal moved(real value)
 
-    implicitHeight: 20
+    readonly property real ratio: Math.max(0, Math.min(1, (value - from) / Math.max(0.0001, to - from)))
+    readonly property bool engaged: interactive && (area.containsMouse || area.pressed || activeFocus)
+
+    implicitHeight: 16
+    activeFocusOnTab: interactive
+
+    Accessible.role: Accessible.Slider
+    Accessible.name: description
+
+    Keys.onLeftPressed: moved(steppedValue(-1))
+    Keys.onRightPressed: moved(steppedValue(1))
 
     function positionFor(mouseX) {
-        return Math.max(from, Math.min(to, from + (mouseX / width) * (to - from)))
+        return Math.max(from, Math.min(to, from + (mouseX / Math.max(1, width)) * (to - from)))
     }
 
     function steppedValue(direction) {
@@ -35,14 +46,16 @@ Item {
         anchors.left: parent.left
         anchors.right: parent.right
         anchors.verticalCenter: parent.verticalCenter
-        height: root.interactive && (area.containsMouse || area.pressed) ? 5 : 3
+        height: root.engaged ? 5 : 3
+        radius: height / 2
         color: Theme.line
-        Behavior on height { NumberAnimation { duration: 90; easing.type: Easing.OutCubic } }
+        Behavior on height { NumberAnimation { duration: 90 } }
 
         Rectangle {
-            width: parent.width * Math.max(0, Math.min(1, (root.value - root.from) / Math.max(1, root.to - root.from)))
+            width: parent.width * root.ratio
             height: parent.height
-            color: Theme.accent
+            radius: height / 2
+            color: root.fillColor
             Behavior on width {
                 enabled: !area.pressed
                 NumberAnimation { duration: 180; easing.type: Easing.OutCubic }
@@ -50,9 +63,24 @@ Item {
         }
     }
 
+    Rectangle {
+        visible: root.interactive
+        width: 10
+        height: 10
+        radius: 5
+        color: root.fillColor
+        opacity: root.engaged ? 1 : 0
+        scale: area.pressed ? 1.2 : 1
+        x: Math.max(0, Math.min(root.width - width, root.width * root.ratio - width / 2))
+        anchors.verticalCenter: parent.verticalCenter
+        Behavior on opacity { NumberAnimation { duration: 110 } }
+    }
+
     MouseArea {
         id: area
         anchors.fill: parent
+        anchors.topMargin: -6
+        anchors.bottomMargin: -6
         enabled: root.interactive
         hoverEnabled: true
         cursorShape: root.interactive ? Qt.PointingHandCursor : Qt.ArrowCursor
