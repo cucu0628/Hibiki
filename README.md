@@ -28,9 +28,13 @@ Downloads are stored under the XDG Music directory in `hibiki`. Application meta
 
 **Now Playing** is a full-size stage for the current track with large cover art, track details, transport controls, timeline and volume.
 
+Create playlists with the **+** button in the sidebar. Use the playlist button on a track to add it to any list, or open a list to remove tracks, rename it, and delete it. Playlists are saved in the library database; deleting one leaves the audio files in your library. Playback started from a playlist follows that playlist's track order even if you switch views.
+
 The window opens with the library already read from the database; the music directory is scanned on a worker thread afterwards and only files whose size or modification time changed are read again. New downloads therefore appear without a visible pause, and startup does not wait for the disk.
 
-The interface follows DankMaterialShell's media layout and active Material palette. It reads the resolved light/dark colors from `~/.cache/DankMaterialShell/dms-colors.json`, plus the theme name and corner radius from `~/.config/DankMaterialShell/settings.json`, and updates when those files change. If DMS is unavailable, a Catppuccin Mocha palette is used.
+The interface follows Vellum Shell's look and its active palette. It reads the theme slug from `~/.config/quickshell/vellum_shell/current-theme` (or `$VELLUM_SHELL_DIR`) and the colors from `themes/<slug>/theme.conf`, and updates when either file changes. Icons come from the Symbols Nerd Font that Vellum Shell installs. If Vellum Shell is unavailable, a Catppuccin Mocha palette is used.
+
+The layout is built for a small window: below 620 px the page tabs collapse to icons, and from 1180 px the library shows the full player beside it. Shortcuts: Space plays or pauses, Ctrl+F searches the library, Ctrl+1–4 switch pages.
 
 ## Discord Rich Presence
 

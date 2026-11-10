@@ -28,6 +28,13 @@ public:
   bool upsertTrack(const QVariantMap &track);
   bool removeTrack(qint64 id);
   QVariantList tracks() const;
+  QVariantList playlists() const;
+  QList<qint64> playlistTrackIds(qint64 playlistId) const;
+  qint64 createPlaylist(const QString &name);
+  bool renamePlaylist(qint64 id, const QString &name);
+  bool deletePlaylist(qint64 id);
+  bool addToPlaylist(qint64 playlistId, qint64 trackId);
+  bool removeFromPlaylist(qint64 playlistId, qint64 trackId);
   // File modification stamps keyed by absolute path, so a rescan can skip
   // files that have not changed since the previous run.
   QHash<QString, FileStamp> fileStamps() const;

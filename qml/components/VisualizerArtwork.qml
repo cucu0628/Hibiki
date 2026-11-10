@@ -1,10 +1,10 @@
 import QtQuick
-import QtQuick.Effects
 
 Item {
     id: root
 
-    property url source
+    // Local file path of the cover.
+    property string path
     property int decodeSize: 512
     property bool playing: false
     property var levels: []
@@ -75,8 +75,9 @@ Item {
         onHeightChanged: requestPaint()
     }
 
-    onLevelsChanged: spectrum.requestPaint()
+    onLevelsChanged: if (visible) spectrum.requestPaint()
     onPlayingChanged: spectrum.requestPaint()
+    onVisibleChanged: if (visible) spectrum.requestPaint()
 
     Connections {
         target: Theme
@@ -102,46 +103,28 @@ Item {
         Rectangle {
             anchors.fill: parent
             radius: width / 2
-            color: Theme.surfaceHighest
-            border.width: 3
-            border.color: Theme.primaryContainer
+            color: Theme.raised
+            border.width: 2
+            border.color: Theme.line
         }
 
+        // Decoded at a fixed size so resizing the window does not reload it;
+        // the provider cuts it to a circle.
         Image {
             id: cover
             anchors.fill: parent
-            source: root.source
+            source: root.path ? "image://cover/0.5/" + encodeURIComponent(root.path) : ""
             sourceSize.width: root.decodeSize
             sourceSize.height: root.decodeSize
-            fillMode: Image.PreserveAspectCrop
             asynchronous: true
             cache: true
-            visible: false
         }
 
-        Rectangle {
-            id: circleMask
-            anchors.fill: parent
-            radius: width / 2
-            color: "white"
-            visible: false
-            layer.enabled: true
-        }
-
-        MultiEffect {
-            anchors.fill: parent
-            source: cover
-            maskEnabled: true
-            maskSource: circleMask
-            visible: cover.status === Image.Ready
-        }
-
-        DmsIcon {
+        VellumIcon {
             anchors.centerIn: parent
             visible: cover.status !== Image.Ready
-            text: "album"
-            color: Theme.accent
-            opacity: 0.72
+            name: "music_note"
+            color: Theme.muted
             iconSize: Math.max(32, parent.width * 0.3)
         }
     }

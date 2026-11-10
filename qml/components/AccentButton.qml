@@ -1,18 +1,20 @@
 import QtQuick
 import QtQuick.Controls
 
-// Material 3 pill button matching DMS controls.
+// Vellum text button. Filled for the main action of a panel, outlined (a thin
+// line over the surface) for everything else.
 Button {
     id: control
 
     property bool outlined: false
     property string iconText: ""
 
-    implicitHeight: 40
-    leftPadding: 14
-    rightPadding: 14
+    implicitHeight: 32
+    leftPadding: 12
+    rightPadding: 12
     opacity: enabled ? 1 : 0.4
     hoverEnabled: true
+    focusPolicy: Qt.TabFocus
 
     contentItem: Item {
         implicitWidth: chipRow.implicitWidth
@@ -21,38 +23,37 @@ Button {
         Row {
             id: chipRow
             anchors.centerIn: parent
-            spacing: control.iconText.length > 0 ? 8 : 0
+            spacing: control.iconText.length > 0 ? 6 : 0
 
-            DmsIcon {
+            VellumIcon {
                 anchors.verticalCenter: parent.verticalCenter
                 visible: control.iconText.length > 0
-                text: control.iconText
-                color: control.outlined ? Theme.accent : Theme.accentText
-                iconSize: 17
+                name: control.iconText
+                color: control.outlined ? Theme.foreground : Theme.accentText
+                iconSize: 14
             }
 
             Text {
                 anchors.verticalCenter: parent.verticalCenter
                 text: control.text
-                color: control.outlined ? Theme.accent : Theme.accentText
+                color: control.outlined ? Theme.foreground : Theme.accentText
                 font.pixelSize: 12
-                font.weight: Font.DemiBold
+                font.weight: Font.Medium
             }
         }
     }
 
     background: Rectangle {
-        radius: height / 2
-        color: control.outlined ? (control.hovered ? Theme.hover : "transparent")
-                                : (control.hovered ? Qt.lighter(Theme.accent, 1.08) : Theme.accent)
-        border.width: 1
-        border.color: control.outlined ? Theme.outline : Theme.accent
-        Behavior on color { ColorAnimation { duration: 155; easing.type: Easing.OutCubic } }
+        radius: 6
+        color: control.outlined
+            ? (control.hovered ? Theme.hover : "transparent")
+            : (control.hovered ? Qt.lighter(Theme.accent, 1.12) : Theme.accent)
+        border.width: control.outlined || control.visualFocus ? 1 : 0
+        border.color: control.visualFocus ? Theme.accent : Theme.line
+        Behavior on color { ColorAnimation { duration: 110 } }
     }
 
-    MouseArea {
-        anchors.fill: parent
-        acceptedButtons: Qt.NoButton
+    HoverHandler {
         cursorShape: control.enabled ? Qt.PointingHandCursor : Qt.ArrowCursor
     }
 }

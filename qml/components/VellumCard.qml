@@ -1,23 +1,12 @@
 import QtQuick
 
-// Nested surface card using DMS' Material container hierarchy.
+// Inner tile on a panel: a slightly lifted surface, accent-tinted while busy.
 Rectangle {
     id: card
 
-    property bool accentLine: false
     property bool highlighted: false
 
-    color: highlighted ? Theme.primaryContainer : Theme.surfaceHigh
+    color: highlighted ? Theme.selection : Theme.raised
     border.width: 0
-    radius: Theme.cornerRadius
-
-    Rectangle {
-        anchors.left: parent.left
-        anchors.top: parent.top
-        anchors.bottom: parent.bottom
-        width: 3
-        color: Theme.accent
-        opacity: 0.8
-        visible: card.accentLine
-    }
+    radius: 8
 }

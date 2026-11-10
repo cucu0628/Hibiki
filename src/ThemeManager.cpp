@@ -3,102 +3,124 @@
 #include <QDir>
 #include <QFile>
 #include <QFileInfo>
-#include <QJsonDocument>
-#include <QJsonObject>
-#include <QStandardPaths>
+#include <QTextStream>
 
 namespace {
-QJsonObject readObject(const QString &path) {
+// Catppuccin Mocha, the palette Vellum Shell itself falls back to.
+const QHash<QString, QColor> &fallbackColors() {
+  static const QHash<QString, QColor> colors{
+      {QStringLiteral("BACKGROUND"), QColor(QStringLiteral("#1e1e2e"))},
+      {QStringLiteral("DARK_BACKGROUND"), QColor(QStringLiteral("#181825"))},
+      {QStringLiteral("SURFACE"), QColor(QStringLiteral("#313244"))},
+      {QStringLiteral("FOREGROUND"), QColor(QStringLiteral("#cdd6f4"))},
+      {QStringLiteral("LIGHT_FOREGROUND"), QColor(QStringLiteral("#bac2de"))},
+      {QStringLiteral("MUTED"), QColor(QStringLiteral("#9399b2"))},
+      {QStringLiteral("ACCENT"), QColor(QStringLiteral("#cba6f7"))},
+      {QStringLiteral("SELECTION"), QColor(QStringLiteral("#45475a"))},
+      {QStringLiteral("RED"), QColor(QStringLiteral("#f38ba8"))},
+  };
+  return colors;
+}
+
+QString shellDirectory() {
+  const QString configured = qEnvironmentVariable("VELLUM_SHELL_DIR");
+  if (!configured.isEmpty())
+    return configured;
+  const QString configRoot = qEnvironmentVariable(
+      "XDG_CONFIG_HOME", QDir::homePath() + QStringLiteral("/.config"));
+  return configRoot + QStringLiteral("/quickshell/vellum_shell");
+}
+
+QString readLine(const QString &path) {
   QFile file(path);
-  if (!file.open(QIODevice::ReadOnly))
+  if (!file.open(QIODevice::ReadOnly | QIODevice::Text))
     return {};
-  const QJsonDocument document = QJsonDocument::fromJson(file.readAll());
-  return document.isObject() ? document.object() : QJsonObject{};
+  return QString::fromUtf8(file.readLine()).trimmed();
 }
 } // namespace
 
 ThemeManager::ThemeManager(QObject *parent) : QObject(parent) {
-  connect(&m_watcher, &QFileSystemWatcher::fileChanged, this,
-          [this] { reload(); });
-  connect(&m_watcher, &QFileSystemWatcher::directoryChanged, this,
-          [this] { reload(); });
+  // A theme switch rewrites several files at once; settle before re-reading.
+  m_reloadTimer.setSingleShot(true);
+  m_reloadTimer.setInterval(120);
+  connect(&m_reloadTimer, &QTimer::timeout, this, &ThemeManager::reload);
+  connect(&m_watcher, &QFileSystemWatcher::fileChanged, &m_reloadTimer,
+          qOverload<>(&QTimer::start));
+  connect(&m_watcher, &QFileSystemWatcher::directoryChanged, &m_reloadTimer,
+          qOverload<>(&QTimer::start));
   reload();
 }
 
-QColor ThemeManager::color(const QJsonObject &colors, const char *key,
-                           const QColor &fallback) {
-  const QColor candidate(colors.value(QLatin1String(key)).toString());
-  return candidate.isValid() ? candidate : fallback;
+QColor ThemeManager::value(const char *key) const {
+  const QString name = QLatin1String(key);
+  const QColor color = m_colors.value(name);
+  return color.isValid() ? color : fallbackColors().value(name);
 }
 
-QColor ThemeManager::withAlpha(QColor value, qreal alpha) {
-  value.setAlphaF(alpha);
-  return value;
+QColor ThemeManager::overlay(qreal alpha) const {
+  // Vellum draws hover and divider layers as a thin white (or, on light
+  // palettes, black) wash over whatever surface sits underneath.
+  QColor wash = m_dark ? QColor(Qt::white) : QColor(Qt::black);
+  wash.setAlphaF(m_dark ? alpha : alpha * 0.8);
+  return wash;
+}
+
+QColor ThemeManager::mix(const QColor &from, const QColor &to, qreal amount) {
+  return QColor::fromRgbF(from.redF() + (to.redF() - from.redF()) * amount,
+                          from.greenF() + (to.greenF() - from.greenF()) * amount,
+                          from.blueF() + (to.blueF() - from.blueF()) * amount);
 }
 
 void ThemeManager::reload() {
-  const QString config =
-      QStandardPaths::writableLocation(QStandardPaths::ConfigLocation) +
-      QStringLiteral("/DankMaterialShell/settings.json");
-  const QString cache =
-      QStandardPaths::writableLocation(QStandardPaths::GenericCacheLocation) +
-      QStringLiteral("/DankMaterialShell/dms-colors.json");
-  const QString stateRoot = qEnvironmentVariable(
-      "XDG_STATE_HOME", QDir::homePath() + QStringLiteral("/.local/state"));
-  const QString session =
-      stateRoot + QStringLiteral("/DankMaterialShell/session.json");
+  const QString shellDir = shellDirectory();
+  const QString currentTheme = shellDir + QStringLiteral("/current-theme");
+  const QString currentWallpaper =
+      shellDir + QStringLiteral("/current-wallpaper");
+  const QString slug = readLine(currentTheme);
+  const QString themeFile =
+      slug.isEmpty() ? QString{}
+                     : shellDir + QStringLiteral("/themes/") + slug +
+                           QStringLiteral("/theme.conf");
 
-  const QJsonObject settings = readObject(config);
-  const QJsonObject palette = readObject(cache);
-  const QString mode = palette.value(QStringLiteral("mode")).toString(
-      QStringLiteral("dark"));
-  const QJsonObject colors =
-      palette.value(QStringLiteral("colors")).toObject().value(mode).toObject();
-
-  if (!colors.isEmpty()) {
-    m_background = color(colors, "background", m_background);
-    m_foreground = color(colors, "on_surface", m_foreground);
-    m_accent = color(colors, "primary", m_accent);
-    m_accentText = color(colors, "on_primary", m_accentText);
-    m_primaryContainer =
-        color(colors, "primary_container", m_primaryContainer);
-    m_surface = color(colors, "surface_container", m_surface);
-    m_surfaceHigh = color(colors, "surface_container_high", m_surfaceHigh);
-    m_surfaceHighest =
-        color(colors, "surface_container_highest", m_surfaceHighest);
-    m_muted = color(colors, "on_surface_variant", m_muted);
-    m_outline = color(colors, "outline", m_outline);
-    m_error = color(colors, "error", m_error);
-  }
-
-  const QString configuredName =
-      settings.value(QStringLiteral("currentThemeName")).toString();
-  if (!configuredName.isEmpty()) {
-    if (configuredName == QStringLiteral("custom")) {
-      const QString customThemePath =
-          settings.value(QStringLiteral("customThemeFile")).toString();
-      const QString customName =
-          readObject(customThemePath).value(QStringLiteral("name")).toString();
-      m_themeName = customName.isEmpty() ? QFileInfo(customThemePath).baseName()
-                                         : customName;
-    } else {
-      m_themeName = configuredName;
+  QHash<QString, QColor> colors;
+  QString name;
+  bool dark = true;
+  QFile file(themeFile);
+  if (!themeFile.isEmpty() &&
+      file.open(QIODevice::ReadOnly | QIODevice::Text)) {
+    QTextStream stream(&file);
+    while (!stream.atEnd()) {
+      const QString line = stream.readLine().trimmed();
+      if (line.isEmpty() || line.startsWith(QLatin1Char('#')))
+        continue;
+      const qsizetype separator = line.indexOf(QLatin1Char('='));
+      if (separator <= 0)
+        continue;
+      const QString key = line.left(separator).trimmed();
+      const QString entry = line.mid(separator + 1).trimmed();
+      if (key == QStringLiteral("NAME"))
+        name = entry;
+      else if (key == QStringLiteral("MODE"))
+        dark = entry.compare(QStringLiteral("light"), Qt::CaseInsensitive) != 0;
+      else if (const QColor color(entry); color.isValid())
+        colors.insert(key, color);
     }
   }
-  m_cornerRadius = qBound(
-      0, settings.value(QStringLiteral("cornerRadius")).toInt(12), 32);
 
-  const QString wallpaperPath =
-      readObject(session).value(QStringLiteral("wallpaperPath")).toString();
-  m_wallpaperUrl = QFileInfo::exists(wallpaperPath)
+  m_colors = colors;
+  m_dark = dark;
+  m_themeName = !name.isEmpty() ? name
+                : !slug.isEmpty() ? slug
+                                  : QStringLiteral("Vellum fallback");
+
+  const QString wallpaperPath = readLine(currentWallpaper);
+  m_wallpaperUrl = !wallpaperPath.isEmpty() && QFileInfo::exists(wallpaperPath)
                        ? QUrl::fromLocalFile(wallpaperPath)
                        : QUrl{};
 
-  QStringList watched{config, cache, session};
-  const QString customTheme =
-      settings.value(QStringLiteral("customThemeFile")).toString();
-  if (!customTheme.isEmpty())
-    watched << customTheme;
+  QStringList watched{currentTheme, currentWallpaper};
+  if (!themeFile.isEmpty())
+    watched << themeFile;
   watchFiles(watched);
   emit themeChanged();
 }
@@ -111,16 +133,16 @@ void ThemeManager::watchFiles(const QStringList &paths) {
   if (!oldDirectories.isEmpty())
     m_watcher.removePaths(oldDirectories);
 
+  // The backend replaces these files atomically, which drops a plain file
+  // watch; the parent directories catch the rename as well.
   QStringList files;
   QStringList directories;
   for (const QString &path : paths) {
     if (QFile::exists(path))
       files << path;
-    else {
-      const QString directory = QFileInfo(path).absolutePath();
-      if (QDir(directory).exists() && !directories.contains(directory))
-        directories << directory;
-    }
+    const QString directory = QFileInfo(path).absolutePath();
+    if (QDir(directory).exists() && !directories.contains(directory))
+      directories << directory;
   }
   if (!files.isEmpty())
     m_watcher.addPaths(files);

@@ -51,6 +51,7 @@ private:
   QLocalSocket m_socket;
   QSettings m_settings;
   QTimer m_retryTimer;
+  QTimer m_handshakeTimer;
   QTimer m_updateTimer;
   QElapsedTimer m_lastActivitySent;
   QByteArray m_buffer;

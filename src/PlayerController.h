@@ -21,6 +21,7 @@ class PlayerController final : public QObject {
   Q_PROPERTY(QString artist READ artist NOTIFY trackChanged)
   Q_PROPERTY(QString album READ album NOTIFY trackChanged)
   Q_PROPERTY(QUrl coverUrl READ coverUrl NOTIFY trackChanged)
+  Q_PROPERTY(QString coverPath READ coverPath NOTIFY trackChanged)
   Q_PROPERTY(bool playing READ playing NOTIFY playingChanged)
   Q_PROPERTY(qint64 position READ position NOTIFY positionChanged)
   Q_PROPERTY(qint64 duration READ duration NOTIFY durationChanged)
@@ -29,6 +30,7 @@ class PlayerController final : public QObject {
   Q_PROPERTY(int repeatMode READ repeatMode WRITE setRepeatMode NOTIFY
                  repeatModeChanged)
   Q_PROPERTY(int currentIndex READ currentIndex NOTIFY trackChanged)
+  Q_PROPERTY(QString currentFilePath READ currentFilePath NOTIFY trackChanged)
   Q_PROPERTY(QVariantList visualizerLevels READ visualizerLevels NOTIFY
                  visualizerLevelsChanged)
 
@@ -40,6 +42,7 @@ public:
   QString artist() const;
   QString album() const;
   QUrl coverUrl() const;
+  QString coverPath() const;
   bool playing() const;
   qint64 position() const { return m_player.position(); }
   qint64 duration() const { return m_player.duration(); }
@@ -50,8 +53,11 @@ public:
   int repeatMode() const { return m_repeatMode; }
   void setRepeatMode(int mode);
   int currentIndex() const { return m_currentIndex; }
+  QString currentFilePath() const;
   QVariantList visualizerLevels() const { return m_visualizerLevels; }
   QVariantMap currentTrack() const { return m_currentTrack; }
+  // Audio analysis only runs while something can show the levels.
+  void setVisualizerActive(bool active);
 
   Q_INVOKABLE void playTrack(int index);
   Q_INVOKABLE void toggle();
@@ -75,6 +81,7 @@ signals:
 
 private:
   void loadCurrent(bool autoplay);
+  void playQueueIndex(int index);
   void restorePlaybackState();
   void resolveCurrentIndex();
   void savePlaybackState();
@@ -92,6 +99,7 @@ private:
   QSettings m_settings;
   QTimer m_positionSaveTimer;
   QVariantMap m_currentTrack;
+  QVariantList m_queue;
   QVector<int> m_history;
   QVariantList m_visualizerLevels{0.0, 0.0, 0.0, 0.0, 0.0, 0.0};
   int m_currentIndex{-1};

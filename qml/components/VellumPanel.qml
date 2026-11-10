@@ -1,18 +1,22 @@
 import QtQuick
 
-// DMS dashboard surface with a compact Material section header.
+// A quiet Vellum section: flat surface, one heading and an optional muted
+// metadata line on the right.
 Rectangle {
     id: panel
 
     property string title: ""
     property string trailing: ""
     property real contentSpacing: 12
-    property real bodyMargin: 18
+    property real bodyMargin: 16
     default property alias content: body.data
 
     readonly property alias bodyHeight: body.height
+    // Heading row plus the gaps around it; callers add their content height.
+    readonly property real chromeHeight: head.anchors.topMargin + head.height
+                                         + contentSpacing + bodyMargin
 
-    radius: Math.max(20, Theme.cornerRadius)
+    radius: 10
     color: Theme.surface
     border.width: 0
     clip: true
@@ -25,39 +29,29 @@ Rectangle {
         anchors.top: parent.top
         anchors.leftMargin: panel.bodyMargin
         anchors.rightMargin: panel.bodyMargin
-        anchors.topMargin: 16
-        height: 20
+        anchors.topMargin: 14
+        height: 18
 
         Text {
             anchors.left: parent.left
             anchors.verticalCenter: parent.verticalCenter
+            width: head.width - (panel.trailing !== "" ? trailingText.width + 12 : 0)
             text: panel.title
             color: Theme.foreground
-            font.pixelSize: 18
+            font.pixelSize: 13
             font.weight: Font.DemiBold
+            elide: Text.ElideRight
         }
 
         Text {
+            id: trailingText
             anchors.right: parent.right
             anchors.verticalCenter: parent.verticalCenter
             text: panel.trailing
             color: Theme.muted
-            font.pixelSize: 11
+            font.pixelSize: 10
             visible: panel.trailing !== ""
         }
-    }
-
-    Rectangle {
-        id: rule
-
-        anchors.left: parent.left
-        anchors.right: parent.right
-        anchors.top: head.bottom
-        anchors.leftMargin: panel.bodyMargin
-        anchors.rightMargin: panel.bodyMargin
-        anchors.topMargin: 8
-        height: 0
-        visible: false
     }
 
     Item {
@@ -65,11 +59,11 @@ Rectangle {
 
         anchors.left: parent.left
         anchors.right: parent.right
-        anchors.top: rule.bottom
+        anchors.top: head.bottom
         anchors.bottom: parent.bottom
         anchors.leftMargin: panel.bodyMargin
         anchors.rightMargin: panel.bodyMargin
         anchors.topMargin: panel.contentSpacing
-        anchors.bottomMargin: 16
+        anchors.bottomMargin: panel.bodyMargin
     }
 }

@@ -1,4 +1,5 @@
 #include "ApplicationController.h"
+#include "CoverImageProvider.h"
 #include "DiscordPresence.h"
 #include "DownloadManager.h"
 #include "PlayerController.h"
@@ -15,7 +16,17 @@
 #include <QQmlContext>
 #include <QQuickStyle>
 
+#ifdef __GLIBC__
+#include <malloc.h>
+#endif
+
 int main(int argc, char *argv[]) {
+#ifdef __GLIBC__
+  // glibc gives every thread that allocates its own heap arena; with the
+  // render, decoder and image loader threads that strands several MB of freed
+  // memory. Two arenas are plenty for a music player.
+  mallopt(M_ARENA_MAX, 2);
+#endif
   QApplication app(argc, argv);
   QApplication::setApplicationName(QStringLiteral("Hibiki"));
   QApplication::setApplicationDisplayName(QStringLiteral("Hibiki"));
@@ -38,6 +49,7 @@ int main(int argc, char *argv[]) {
   }
 
   QQmlApplicationEngine engine;
+  engine.addImageProvider(QStringLiteral("cover"), new CoverImageProvider);
   ApplicationController controller(&engine);
   if (!controller.initialize())
     return 1;

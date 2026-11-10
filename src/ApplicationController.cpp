@@ -11,8 +11,13 @@
 #include <QApplication>
 #include <QDir>
 #include <QQmlApplicationEngine>
+#include <QQuickWindow>
 #include <QStandardPaths>
 #include <QTimer>
+
+#ifdef __GLIBC__
+#include <malloc.h>
+#endif
 
 ApplicationController::ApplicationController(QQmlApplicationEngine *engine,
                                              QObject *parent)
@@ -80,6 +85,34 @@ ThemeManager *ApplicationController::theme() const { return m_theme.get(); }
 void ApplicationController::windowReady(QObject *window) {
   m_window = window;
   m_tray->setWindow(window);
+  auto *quickWindow = qobject_cast<QQuickWindow *>(window);
+  if (!quickWindow)
+    return;
+  // Hibiki mostly lives in the tray; let a hidden window drop its scene graph
+  // and graphics context instead of holding textures nobody can see.
+  quickWindow->setPersistentGraphics(false);
+  quickWindow->setPersistentSceneGraph(false);
+  connect(quickWindow, &QWindow::visibleChanged, this,
+          [this, quickWindow](bool visible) {
+            m_player->setVisualizerActive(visible);
+            if (!visible)
+              QTimer::singleShot(500, quickWindow, [this, quickWindow] {
+                releaseHiddenWindow(quickWindow);
+              });
+          });
+}
+
+void ApplicationController::releaseHiddenWindow(QQuickWindow *window) {
+  // The render loop has had a moment to tear the scene graph down; now hand
+  // what it freed back to the system.
+  if (window->isVisible())
+    return;
+  window->releaseResources();
+  m_engine->collectGarbage();
+  m_engine->trimComponentCache();
+#ifdef __GLIBC__
+  QTimer::singleShot(500, this, [] { malloc_trim(0); });
+#endif
 }
 
 void ApplicationController::hideToTray() {

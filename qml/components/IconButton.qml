@@ -1,56 +1,51 @@
 import QtQuick
 import QtQuick.Controls
 
-// Rounded DMS media action. The primary play button uses the active theme's
-// primary color; secondary actions get the Material state layer on hover.
+// Square Vellum control: a quiet hover wash for secondary actions, a solid
+// accent tile for the primary one (play/pause).
 Button {
     id: control
 
+    property string glyph: ""
     property bool primary: false
     property bool active: false
-    property int buttonWidth: primary ? 56 : 44
-    property int buttonHeight: primary ? 56 : 44
-    property int iconSize: primary ? 24 : 20
+    property int buttonWidth: primary ? 44 : 32
+    property int buttonHeight: 32
+    property int iconSize: primary ? 18 : 16
     property string description: ""
 
     implicitWidth: buttonWidth
     implicitHeight: buttonHeight
     padding: 0
     hoverEnabled: true
-    font.family: DmsFonts.icons
-    font.pixelSize: iconSize
-    font.variableAxes: {
-        "FILL": control.primary || control.active ? 1 : 0,
-        "GRAD": -25,
-        "opsz": 24,
-        "wght": control.primary || control.active ? 500 : 400
-    }
+    focusPolicy: Qt.TabFocus
+
+    Accessible.name: description
 
     ToolTip.visible: hovered && description.length > 0
     ToolTip.text: description
-    ToolTip.delay: 450
+    ToolTip.delay: 600
 
-    contentItem: Text {
-        text: control.text
+    contentItem: VellumIcon {
+        name: control.glyph
+        iconSize: control.iconSize
         color: control.primary ? Theme.accentText
-                               : control.active ? Theme.accent : Theme.foreground
+             : control.active ? Theme.accent : Theme.foreground
         opacity: control.enabled ? 1 : 0.35
-        font: control.font
-        horizontalAlignment: Text.AlignHCenter
-        verticalAlignment: Text.AlignVCenter
     }
 
     background: Rectangle {
-        radius: height / 2
-        color: control.primary ? (control.hovered ? Qt.lighter(Theme.accent, 1.08) : Theme.accent)
-                               : (control.hovered ? Theme.hover : "transparent")
-        border.width: 0
-        Behavior on color { ColorAnimation { duration: 155; easing.type: Easing.OutCubic } }
+        radius: 6
+        color: control.primary
+            ? (control.down ? Qt.darker(Theme.accent, 1.08)
+               : control.hovered ? Qt.lighter(Theme.accent, 1.12) : Theme.accent)
+            : (control.down ? Theme.line : control.hovered && control.enabled ? Theme.hover : "transparent")
+        border.width: control.visualFocus ? 1 : 0
+        border.color: Theme.accent
+        Behavior on color { ColorAnimation { duration: 110 } }
     }
 
-    MouseArea {
-        anchors.fill: parent
-        acceptedButtons: Qt.NoButton
+    HoverHandler {
         cursorShape: control.enabled ? Qt.PointingHandCursor : Qt.ArrowCursor
     }
 }

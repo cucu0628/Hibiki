@@ -32,6 +32,8 @@ qt_add_executable(hibiki
     src/main.cpp
     src/ApplicationController.cpp
     src/ApplicationController.h
+    src/CoverImageProvider.cpp
+    src/CoverImageProvider.h
     src/DownloadManager.cpp
     src/DownloadManager.h
     src/DiscordPresence.cpp
@@ -50,10 +52,6 @@ qt_add_executable(hibiki
     src/TrayController.h
 )
 
-set_source_files_properties(qml/components/DmsFonts.qml PROPERTIES
-    QT_QML_SINGLETON_TYPE TRUE
-)
-
 qt_add_qml_module(hibiki
     URI Hibiki
     VERSION 1.0
@@ -62,11 +60,12 @@ qt_add_qml_module(hibiki
         qml/components/AccentButton.qml
         qml/components/Artwork.qml
         qml/components/DownloadPanel.qml
-        qml/components/DmsFonts.qml
-        qml/components/DmsIcon.qml
         qml/components/NowPlayingView.qml
         qml/components/VisualizerArtwork.qml
+        qml/components/VellumDialog.qml
         qml/components/VellumField.qml
+        qml/components/VellumGlyphs.js
+        qml/components/VellumIcon.qml
         qml/components/VellumPanel.qml
         qml/components/SettingsView.qml
         qml/components/IconButton.qml
@@ -74,6 +73,7 @@ qt_add_qml_module(hibiki
         qml/components/NowPlayingBar.qml
         qml/components/VellumCard.qml
         qml/components/VellumSlider.qml
+        qml/components/VellumSwitch.qml
         qml/components/SectionLabel.qml
 )
 
@@ -120,7 +120,9 @@ qt_add_executable(hibiki_tests
     tests/tst_library.cpp
     src/LibraryRepository.cpp
     src/LibraryRepository.h
+    src/TrackModel.cpp
+    src/TrackModel.h
 )
-target_link_libraries(hibiki_tests PRIVATE Qt6::Core Qt6::Sql Qt6::Test)
+target_link_libraries(hibiki_tests PRIVATE Qt6::Concurrent Qt6::Core Qt6::Sql Qt6::Test)
 target_include_directories(hibiki_tests PRIVATE src)
 add_test(NAME hibiki_tests COMMAND hibiki_tests)

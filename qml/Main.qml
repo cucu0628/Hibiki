@@ -5,24 +5,30 @@ import Hibiki
 
 ApplicationWindow {
     id: window
-    width: 1120
-    height: 760
-    minimumWidth: 860
-    minimumHeight: 600
+    width: 760
+    height: 600
+    minimumWidth: 400
+    minimumHeight: 460
     visible: true
     title: "Hibiki"
     color: Theme.background
-    font.family: DmsFonts.sans
 
     property int page: 0
-    readonly property bool wideMode: width >= 1450
-    readonly property bool libraryEmpty: Tracks.count === 0
+    // Icon-only tabs below this width; the library drops secondary columns.
+    readonly property bool compact: width < 620
+    readonly property bool wideMode: width >= 1180
+    readonly property bool libraryEmpty: Tracks.libraryCount === 0
     readonly property bool showWidePlayer: wideMode && !libraryEmpty
 
+    readonly property var pages: [
+        { label: "Library", icon: "library_music" },
+        { label: "Playing", icon: "play_circle" },
+        { label: "Downloads", icon: "download" },
+        { label: "Settings", icon: "settings" }
+    ]
+
     onPageChanged: {
-        if (page === 1)
-            stageLoader.visited = true
-        else if (page === 2)
+        if (page === 2)
             downloadsLoader.visited = true
         else if (page === 3)
             settingsLoader.visited = true
@@ -34,230 +40,241 @@ ApplicationWindow {
         App.hideToTray()
     }
 
+    function openPlaylistEditor(id, name) {
+        playlistEditor.playlistId = id
+        playlistName.text = name || ""
+        playlistEditor.open()
+        playlistName.forceActiveFocus()
+    }
+
+    Shortcut {
+        sequence: "Space"
+        onActivated: Player.toggle()
+    }
+    Shortcut {
+        sequences: [StandardKey.Find]
+        onActivated: {
+            window.page = 0
+            library.focusSearch()
+        }
+    }
+    Shortcut { sequence: "Ctrl+1"; onActivated: window.page = 0 }
+    Shortcut { sequence: "Ctrl+2"; onActivated: window.page = 1 }
+    Shortcut { sequence: "Ctrl+3"; onActivated: window.page = 2 }
+    Shortcut { sequence: "Ctrl+4"; onActivated: window.page = 3 }
+
+    VellumDialog {
+        id: playlistEditor
+        property int playlistId: -1
+        title: playlistId < 0 ? "New playlist" : "Rename playlist"
+
+        contentItem: ColumnLayout {
+            spacing: 16
+            VellumField {
+                id: playlistName
+                Layout.fillWidth: true
+                placeholderText: "Playlist name"
+                onAccepted: playlistEditor.save()
+            }
+            RowLayout {
+                Layout.alignment: Qt.AlignRight
+                spacing: 8
+                AccentButton { text: "Cancel"; outlined: true; onClicked: playlistEditor.close() }
+                AccentButton {
+                    text: playlistEditor.playlistId < 0 ? "Create" : "Save"
+                    enabled: playlistName.text.trim().length > 0
+                    onClicked: playlistEditor.save()
+                }
+            }
+        }
+        function save() {
+            if (!playlistName.text.trim())
+                return
+            if (playlistId < 0) {
+                let id = Tracks.createPlaylist(playlistName.text)
+                if (id >= 0) {
+                    Tracks.selectedPlaylistId = id
+                    window.page = 0
+                    close()
+                }
+            } else if (Tracks.renamePlaylist(playlistId, playlistName.text)) {
+                close()
+            }
+        }
+    }
+
+    VellumDialog {
+        id: deletePlaylistDialog
+        title: "Delete playlist?"
+
+        contentItem: ColumnLayout {
+            spacing: 16
+            Text {
+                Layout.fillWidth: true
+                text: "“" + Tracks.selectedPlaylistName + "” will be removed. Its tracks stay in your library."
+                textFormat: Text.PlainText
+                color: Theme.muted
+                wrapMode: Text.WordWrap
+                font.pixelSize: 12
+            }
+            RowLayout {
+                Layout.alignment: Qt.AlignRight
+                spacing: 8
+                AccentButton { text: "Cancel"; outlined: true; onClicked: deletePlaylistDialog.close() }
+                AccentButton {
+                    text: "Delete"
+                    onClicked: {
+                        Tracks.deletePlaylist(Tracks.selectedPlaylistId)
+                        deletePlaylistDialog.close()
+                    }
+                }
+            }
+        }
+    }
+
     background: Rectangle {
         color: Theme.background
     }
 
-    RowLayout {
-        width: parent.width - 32
-        height: parent.height - 32
-        anchors.centerIn: parent
+    ColumnLayout {
+        anchors.fill: parent
+        anchors.margins: 12
         spacing: 12
 
-        Rectangle {
-            id: sidebar
-            Layout.preferredWidth: 228
-            Layout.fillHeight: true
-            color: Theme.surface
-            radius: Math.max(20, Theme.cornerRadius)
+        // Header: wordmark on the left, page tabs on the right.
+        RowLayout {
+            Layout.fillWidth: true
+            Layout.preferredHeight: 32
+            Layout.leftMargin: 4
+            spacing: 12
 
-            ColumnLayout {
-                anchors.fill: parent
-                anchors.margins: 14
-                spacing: 8
+            Text {
+                Layout.fillWidth: true
+                text: "Hibiki"
+                color: Theme.foreground
+                font.family: "serif"
+                font.pixelSize: 20
+                font.weight: Font.Medium
+                elide: Text.ElideRight
+            }
 
-                RowLayout {
-                    Layout.fillWidth: true
-                    Layout.bottomMargin: 12
-                    spacing: 12
-
-                    Rectangle {
-                        Layout.preferredWidth: 44
-                        Layout.preferredHeight: 44
-                        radius: 14
-                        color: Theme.primaryContainer
-
-                        DmsIcon {
-                            anchors.centerIn: parent
-                            text: "music_note"
-                            color: Theme.accent
-                            filled: true
-                            iconSize: 24
-                        }
-                    }
-
-                    ColumnLayout {
-                        Layout.fillWidth: true
-                        spacing: 0
-
-                        Text {
-                            text: "Hibiki"
-                            color: Theme.foreground
-                            font.pixelSize: 18
-                            font.weight: Font.DemiBold
-                        }
-                        Text {
-                            Layout.fillWidth: true
-                            text: "Music player"
-                            color: Theme.muted
-                            font.pixelSize: 11
-                            elide: Text.ElideRight
-                        }
-                    }
-                }
+            Row {
+                id: tabs
+                spacing: 2
 
                 Repeater {
-                    model: [
-                        { label: "Library", icon: "library_music", index: 0 },
-                        { label: "Now playing", icon: "play_circle", index: 1 },
-                        { label: "Downloads", icon: "download", index: 2 },
-                        { label: "Settings", icon: "settings", index: 3 }
-                    ]
+                    model: window.pages
 
                     delegate: Rectangle {
-                        id: navChip
+                        id: tab
                         required property var modelData
-                        readonly property bool selected: window.page === modelData.index
+                        required property int index
+                        readonly property bool selected: window.page === index
 
-                        Layout.fillWidth: true
-                        implicitHeight: 46
-                        radius: height / 2
-                        color: navChip.selected ? Theme.primaryContainer
-                             : navMouse.containsMouse ? Theme.hover : "transparent"
-                        Behavior on color { ColorAnimation { duration: 155; easing.type: Easing.OutCubic } }
+                        width: tabRow.implicitWidth + (window.compact ? 16 : 20)
+                        height: 32
+                        radius: 6
+                        color: selected ? Theme.surface
+                             : tabArea.containsMouse ? Theme.hover : "transparent"
+                        Behavior on color { ColorAnimation { duration: 110 } }
+
+                        Accessible.role: Accessible.PageTab
+                        Accessible.name: modelData.label
 
                         Row {
-                            anchors.left: parent.left
-                            anchors.leftMargin: 16
-                            anchors.verticalCenter: parent.verticalCenter
-                            spacing: 13
+                            id: tabRow
+                            anchors.centerIn: parent
+                            spacing: 6
 
-                            DmsIcon {
+                            VellumIcon {
                                 anchors.verticalCenter: parent.verticalCenter
-                                text: navChip.modelData.icon
-                                color: navChip.selected ? Theme.accent : Theme.foreground
-                                filled: navChip.selected
-                                iconSize: 20
+                                name: tab.modelData.icon
+                                iconSize: 15
+                                color: tab.selected ? Theme.accent : Theme.muted
                             }
                             Text {
                                 anchors.verticalCenter: parent.verticalCenter
-                                text: navChip.modelData.label
-                                color: navChip.selected ? Theme.accent : Theme.foreground
-                                font.pixelSize: 13
-                                font.weight: navChip.selected ? Font.DemiBold : Font.Normal
+                                visible: !window.compact
+                                text: tab.modelData.label
+                                color: tab.selected ? Theme.foreground : Theme.muted
+                                font.pixelSize: 12
+                                font.weight: tab.selected ? Font.DemiBold : Font.Normal
                             }
                         }
 
                         MouseArea {
-                            id: navMouse
+                            id: tabArea
                             anchors.fill: parent
                             hoverEnabled: true
                             cursorShape: Qt.PointingHandCursor
-                            onClicked: window.page = navChip.modelData.index
-                        }
-                    }
-                }
-
-                Item { Layout.fillHeight: true }
-
-                Rectangle {
-                    Layout.fillWidth: true
-                    implicitHeight: 66
-                    radius: Theme.cornerRadius
-                    color: Theme.surfaceHigh
-
-                    RowLayout {
-                        anchors.fill: parent
-                        anchors.margins: 12
-                        spacing: 10
-
-                        Rectangle {
-                            Layout.preferredWidth: 34
-                            Layout.preferredHeight: 34
-                            radius: 17
-                            color: Theme.primaryContainer
-
-                            DmsIcon {
-                                anchors.centerIn: parent
-                                text: "palette"
-                                color: Theme.accent
-                                filled: true
-                                iconSize: 18
-                            }
+                            onClicked: window.page = tab.index
                         }
 
-                        ColumnLayout {
-                            Layout.fillWidth: true
-                            spacing: 1
-                            Text {
-                                text: "DMS theme"
-                                color: Theme.muted
-                                font.pixelSize: 10
-                            }
-                            Text {
-                                Layout.fillWidth: true
-                                text: Theme.themeName
-                                color: Theme.foreground
-                                font.pixelSize: 12
-                                font.weight: Font.DemiBold
-                                elide: Text.ElideRight
-                            }
-                        }
+                        ToolTip.visible: window.compact && tabArea.containsMouse
+                        ToolTip.text: modelData.label
+                        ToolTip.delay: 600
                     }
                 }
             }
         }
 
-        ColumnLayout {
+        StackLayout {
             Layout.fillWidth: true
             Layout.fillHeight: true
-            spacing: 12
+            currentIndex: window.page
 
-            StackLayout {
-                Layout.fillWidth: true
-                Layout.fillHeight: true
-                currentIndex: window.page
+            RowLayout {
+                spacing: 12
 
-                Item {
-                    RowLayout {
-                        width: window.libraryEmpty && window.wideMode
-                            ? Math.min(parent.width, 760) : parent.width
-                        height: window.libraryEmpty && window.wideMode
-                            ? Math.min(parent.height, 540) : parent.height
-                        anchors.centerIn: parent
-                        spacing: 12
-
-                        LibraryView {
-                            Layout.fillWidth: true
-                            Layout.fillHeight: true
-                            onDownloadRequested: window.page = 2
-                        }
-
-                        NowPlayingView {
-                            Layout.preferredWidth: window.width >= 1800 ? 500 : 460
-                            Layout.fillHeight: true
-                            visible: window.showWidePlayer
-                        }
-                    }
+                LibraryView {
+                    id: library
+                    Layout.fillWidth: true
+                    Layout.fillHeight: true
+                    compact: window.compact
+                    onDownloadRequested: window.page = 2
+                    onCreatePlaylistRequested: window.openPlaylistEditor(-1, "")
+                    onRenameRequested: window.openPlaylistEditor(Tracks.selectedPlaylistId,
+                                                                 Tracks.selectedPlaylistName)
+                    onDeleteRequested: deletePlaylistDialog.open()
                 }
 
                 Loader {
-                    id: stageLoader
-                    property bool visited: false
-                    active: visited
+                    Layout.preferredWidth: 380
+                    Layout.fillHeight: true
+                    visible: active
+                    active: window.showWidePlayer
                     sourceComponent: NowPlayingView { }
                 }
-
-                Loader {
-                    id: downloadsLoader
-                    property bool visited: false
-                    active: visited
-                    sourceComponent: DownloadPanel { }
-                }
-
-                Loader {
-                    id: settingsLoader
-                    property bool visited: false
-                    active: visited
-                    sourceComponent: SettingsView { }
-                }
             }
 
-            NowPlayingBar {
-                Layout.fillWidth: true
-                visible: window.page !== 1
-                      && !(window.page === 0 && (window.showWidePlayer || window.libraryEmpty))
+            // Everything the player shows lives in Player, so the page (and
+            // its visualizer canvas) is only kept while it is on screen.
+            Loader {
+                active: window.page === 1
+                sourceComponent: NowPlayingView { }
             }
+
+            Loader {
+                id: downloadsLoader
+                property bool visited: false
+                active: visited
+                sourceComponent: DownloadPanel { }
+            }
+
+            Loader {
+                id: settingsLoader
+                property bool visited: false
+                active: visited
+                sourceComponent: SettingsView { }
+            }
+        }
+
+        NowPlayingBar {
+            Layout.fillWidth: true
+            compact: window.compact
+            visible: !window.libraryEmpty && window.page !== 1
+                     && !(window.page === 0 && window.showWidePlayer)
+            onOpenRequested: window.page = 1
         }
     }
 }
